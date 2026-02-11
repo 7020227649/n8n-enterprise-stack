@@ -45,11 +45,21 @@ bot.start((ctx) => {
             "🔧 <b>Workflow Tools</b>",
             "/search — Search by name",
             "/clone — Duplicate a workflow",
+            "/rename — Rename a workflow",
             "/export — Download as JSON",
             "/nodes — View node breakdown",
             "/schedule — Scheduled workflows",
+            "/webhook_url — Show webhook URLs",
             "/stop — Stop running execution",
             "/credentials — List credentials",
+            "",
+            "🔄 <b>Operations</b>",
+            "/active — Active workflows only",
+            "/inactive — Inactive workflows only",
+            "/enable_all — Enable all workflows",
+            "/disable_all — Disable all workflows",
+            "/retry — Retry failed execution",
+            "/execution — Execution details",
             "",
             "💾 <b>Backup & Restore</b>",
             "/backup_all — Full backup",
@@ -60,7 +70,8 @@ bot.start((ctx) => {
             "/restore_workflow — Restore from file",
             "/restore_status — Restore history",
             "",
-            "📊 <b>Analytics</b>",
+            "📊 <b>Analytics & Dashboard</b>",
+            "/summary — Dashboard overview",
             "/stats — Workflow stats",
             "/stats_all — Global summary",
             "/top — Top workflows",
@@ -81,6 +92,7 @@ bot.start((ctx) => {
             "/disk — Docker disk usage",
             "/restart_n8n — Quick restart",
             "/update_n8n — Update n8n to latest",
+            "/version — n8n + bot version info",
             "",
             "📖 /help — Interactive help menu",
         ].join("\n"),
@@ -98,6 +110,8 @@ require("./commands/health")(bot);
 require("./commands/update")(bot);
 require("./commands/system")(bot);
 require("./commands/tools")(bot);
+require("./commands/operations")(bot);
+require("./commands/dashboard")(bot);
 require("./commands/help")(bot);
 
 // ─── Initialize Server (failure webhook + alerts) ────

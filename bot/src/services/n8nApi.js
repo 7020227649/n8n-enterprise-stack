@@ -105,4 +105,18 @@ module.exports = {
     const data = res.data?.data || res.data;
     return Array.isArray(data) ? data : [];
   },
+
+  // ─── Retry Execution ────────────────────────────────
+
+  async retryExecution(id) {
+    const res = await api.post(`/executions/${id}/retry`);
+    return res.data?.data || res.data;
+  },
+
+  // ─── Settings / Version ─────────────────────────────
+
+  async getSettings() {
+    const res = await api.get("/settings");
+    return res.data?.data || res.data;
+  },
 };
