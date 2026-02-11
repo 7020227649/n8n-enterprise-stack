@@ -61,6 +61,11 @@ module.exports = {
     return res.data?.data || res.data;
   },
 
+  async createWorkflow(data) {
+    const res = await api.post("/workflows", data);
+    return res.data?.data || res.data;
+  },
+
   // ─── Workflow Execution ─────────────────────────────
 
   async executeWorkflow(id) {
@@ -84,5 +89,20 @@ module.exports = {
   async getExecution(id) {
     const res = await api.get(`/executions/${id}`);
     return res.data?.data || res.data;
-  }
+  },
+
+  // ─── Stop / Delete Execution ────────────────────────
+
+  async stopExecution(id) {
+    const res = await api.post(`/executions/${id}/stop`);
+    return res.data?.data || res.data;
+  },
+
+  // ─── Credentials ────────────────────────────────────
+
+  async getCredentials() {
+    const res = await api.get("/credentials");
+    const data = res.data?.data || res.data;
+    return Array.isArray(data) ? data : [];
+  },
 };

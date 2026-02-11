@@ -42,14 +42,21 @@ bot.start((ctx) => {
             "/disable — Deactivate a workflow",
             "/delete — Remove a workflow",
             "",
-            "💾 <b>Backup</b>",
+            "🔧 <b>Workflow Tools</b>",
+            "/search — Search by name",
+            "/clone — Duplicate a workflow",
+            "/export — Download as JSON",
+            "/nodes — View node breakdown",
+            "/schedule — Scheduled workflows",
+            "/stop — Stop running execution",
+            "/credentials — List credentials",
+            "",
+            "💾 <b>Backup & Restore</b>",
             "/backup_all — Full backup",
             "/backup_workflow — Single workflow backup",
             "/daily_backup_on — Enable daily backup",
             "/daily_backup_off — Disable daily backup",
-            "/daily_backup_status — Daily backup status",
-            "",
-            "♻️ <b>Restore</b>",
+            "/daily_backup_status — Backup status",
             "/restore_workflow — Restore from file",
             "/restore_status — Restore history",
             "",
@@ -69,7 +76,13 @@ bot.start((ctx) => {
             "",
             "⚙️ <b>System</b>",
             "/health — n8n health check",
+            "/system — Server resource usage",
+            "/logs — View n8n logs",
+            "/disk — Docker disk usage",
+            "/restart_n8n — Quick restart",
             "/update_n8n — Update n8n to latest",
+            "",
+            "📖 /help — Interactive help menu",
         ].join("\n"),
         { parse_mode: "HTML" }
     );
@@ -83,6 +96,9 @@ require("./commands/analytics")(bot);
 require("./commands/alerts")(bot);
 require("./commands/health")(bot);
 require("./commands/update")(bot);
+require("./commands/system")(bot);
+require("./commands/tools")(bot);
+require("./commands/help")(bot);
 
 // ─── Initialize Server (failure webhook + alerts) ────
 require("./server")(bot);
