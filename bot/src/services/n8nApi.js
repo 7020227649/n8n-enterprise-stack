@@ -18,6 +18,25 @@ axiosRetry(api, {
   retryDelay: axiosRetry.exponentialDelay
 });
 
+// Request Interceptor: Inject API Key if available
+api.interceptors.request.use(config => {
+  try {
+    const state = require("../utils/state"); // Dynamic import
+    const apiKey = state.get("n8nApiKey");
+
+    if (apiKey) {
+      config.headers["X-N8N-API-KEY"] = apiKey;
+      // Switch to Public API endpoint if we were using Internal API
+      if (config.baseURL && config.baseURL.endsWith("/rest")) {
+        config.baseURL = config.baseURL.replace("/rest", "/api/v1");
+      }
+    }
+  } catch (err) {
+    console.warn("Failed to inject API Key:", err.message);
+  }
+  return config;
+});
+
 // Log API errors for easier debugging
 api.interceptors.response.use(
   response => response,

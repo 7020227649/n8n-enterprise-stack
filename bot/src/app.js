@@ -100,6 +100,7 @@ bot.action("quick_backup", (ctx) => {
 
 
 // ─── Register Command Modules ────────────────────────
+require("./commands/auth")(bot);
 require("./commands/workflows")(bot);
 require("./commands/backups")(bot);
 require("./commands/restore")(bot);
