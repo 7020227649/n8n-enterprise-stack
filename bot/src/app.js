@@ -1,5 +1,4 @@
-
-const { Telegraf } = require("telegraf");
+const { Telegraf, Markup } = require("telegraf");
 const config = require("./config");
 const { validateEnv } = require("./utils/validators");
 
@@ -27,9 +26,6 @@ const rateLimit = require("./middleware/rateLimit");
 
 bot.use(adminOnly);
 bot.use(rateLimit);
-
-// ─── Start Command ──────────────────────────────────
-const { Telegraf, Markup } = require("telegraf");
 
 // ... (imports)
 
