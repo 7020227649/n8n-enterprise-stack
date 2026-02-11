@@ -30,8 +30,12 @@ services:
       N8N_BASIC_AUTH_ACTIVE: "true"
       N8N_BASIC_AUTH_USER: ${N8N_USER}
       N8N_BASIC_AUTH_PASSWORD: ${N8N_PASS}
+      N8N_COMMUNITY_PACKAGES_ENABLED: "true"
+      N8N_REINSTALL_MISSING_PACKAGES: "true"
     ports:
       - "127.0.0.1:5678:5678"
+    volumes:
+      - n8n_data:/home/node/.n8n
 
   n8n-worker:
     image: n8nio/n8n:${N8N_VERSION}
@@ -46,6 +50,10 @@ services:
       DB_POSTGRESDB_PASSWORD: ${POSTGRES_PASSWORD}
       EXECUTIONS_MODE: queue
       QUEUE_BULL_REDIS_HOST: redis
+      N8N_COMMUNITY_PACKAGES_ENABLED: "true"
+      N8N_REINSTALL_MISSING_PACKAGES: "true"
+    volumes:
+      - n8n_data:/home/node/.n8n
 
   bot:
     build: ./bot
@@ -68,3 +76,4 @@ services:
 volumes:
   postgres_data:
   bot_data:
+  n8n_data:
