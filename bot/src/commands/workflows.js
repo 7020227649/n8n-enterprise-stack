@@ -1,41 +1,46 @@
-
 const n8nApi = require("../services/n8nApi");
 const { escapeHtml, statusEmoji, formatWorkflowCard } = require("../utils/format");
 const { buildPagedKeyboard } = require("../utils/pagination");
 const { Markup } = require("telegraf");
 
+// ─── Helper: build workflow items for pagination ────
+
+function workflowItems(workflows, prefix, emojiOverride) {
+    return workflows.map(wf => ({
+        label: `${emojiOverride || statusEmoji(wf.active)} ${wf.name}`,
+        callbackData: `${prefix}_${wf.id}`
+    }));
+}
+
+// ─── Handler: List Workflows ────────────────────────
+
+async function listWorkflows(ctx) {
+    try {
+        const workflows = await n8nApi.getAllWorkflows();
+
+        if (!workflows || workflows.length === 0) {
+            return ctx.reply("📭 No workflows found.");
+        }
+
+        const items = workflowItems(workflows, "wf_detail");
+        const { keyboard, pageInfo } = buildPagedKeyboard(items, 0, "wflist_pg");
+
+        await ctx.reply(
+            `📋 <b>Workflows</b> (${workflows.length} total)${pageInfo}\n\nTap to see details:`,
+            { parse_mode: "HTML", ...keyboard }
+        );
+    } catch (err) {
+        console.error("Error in listWorkflows:", err);
+        await ctx.reply(`❌ Error fetching workflows: ${err.message}`);
+    }
+}
+
+// ─── Module Initialization ──────────────────────────
+
 module.exports = (bot) => {
 
-    // ─── Helper: build workflow items for pagination ────
-
-    function workflowItems(workflows, prefix, emojiOverride) {
-        return workflows.map(wf => ({
-            label: `${emojiOverride || statusEmoji(wf.active)} ${wf.name}`,
-            callbackData: `${prefix}_${wf.id}`
-        }));
-    }
-
     // ─── /workflows — Interactive workflow list ─────────
-
-    bot.command("workflows", async (ctx) => {
-        try {
-            const workflows = await n8nApi.getAllWorkflows();
-
-            if (!workflows || workflows.length === 0) {
-                return ctx.reply("📭 No workflows found.");
-            }
-
-            const items = workflowItems(workflows, "wf_detail");
-            const { keyboard, pageInfo } = buildPagedKeyboard(items, 0, "wflist_pg");
-
-            await ctx.reply(
-                `📋 <b>Workflows</b> (${workflows.length} total)${pageInfo}\n\nTap to see details:`,
-                { parse_mode: "HTML", ...keyboard }
-            );
-        } catch (err) {
-            await ctx.reply(`❌ Error fetching workflows: ${err.message}`);
-        }
-    });
+    bot.command("workflows", listWorkflows);
 
     // Page navigation for /workflows
     bot.action(/^wflist_pg_(\d+)$/, async (ctx) => {
@@ -51,6 +56,7 @@ module.exports = (bot) => {
                 { parse_mode: "HTML", ...keyboard }
             );
         } catch (err) {
+            console.error(err);
             await ctx.answerCbQuery("Error");
         }
     });
@@ -64,6 +70,7 @@ module.exports = (bot) => {
             await ctx.answerCbQuery();
             await ctx.reply(formatWorkflowCard(wf), { parse_mode: "HTML" });
         } catch (err) {
+            console.error(err);
             await ctx.answerCbQuery("Error loading workflow");
             await ctx.reply(`❌ Error: ${err.message}`);
         }
@@ -365,5 +372,6 @@ module.exports = (bot) => {
         await ctx.answerCbQuery("Cancelled");
         await ctx.editMessageText("❌ Deletion cancelled.");
     });
-
 };
+
+module.exports.listWorkflows = listWorkflows;

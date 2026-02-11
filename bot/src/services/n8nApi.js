@@ -18,6 +18,15 @@ axiosRetry(api, {
   retryDelay: axiosRetry.exponentialDelay
 });
 
+// Log API errors for easier debugging
+api.interceptors.response.use(
+  response => response,
+  error => {
+    console.error(`[n8n API] Error ${error.response?.status} on ${error.config?.url}:`, error.response?.data || error.message);
+    return Promise.reject(error);
+  }
+);
+
 module.exports = {
 
   // ─── Workflow CRUD ──────────────────────────────────

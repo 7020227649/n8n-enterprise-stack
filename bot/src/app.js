@@ -74,10 +74,29 @@ bot.start((ctx) => {
 // Better: Check if `help.js` listens to "help_menu".
 // If not, I'll add the actions here for simplicity to redirect to commands.
 
-bot.action("help_menu", (ctx) => ctx.reply("/help")); // Placeholder, better to invoke help function
-bot.action("op_list_workflows", (ctx) => ctx.reply("Please type /workflows to see your flows.")); // Placeholder
-bot.action("sys_health", (ctx) => ctx.reply("Checking /health...")); // Placeholder
-bot.action("quick_backup", (ctx) => ctx.reply("Starting /backup_all...")); // Placeholder
+// ─── Action Handlers ─────────────────────────────────
+
+bot.action("help_menu", (ctx) => ctx.reply("📖 Access the full command list by sending /help"));
+
+bot.action("op_list_workflows", require("./commands/workflows").listWorkflows);
+
+bot.action("sys_health", async (ctx) => {
+    await ctx.answerCbQuery("Checking health...");
+    const healthService = require("./services/healthService");
+    try {
+        const health = await healthService.checkHealth();
+        const status = health.status === "ok" ? "✅ Operational" : "⚠️ Issues Detected";
+        // Simple response, user can run /health for details
+        await ctx.reply(`<b>System Status:</b> ${status}\nDatabase: ${health.dbConnection ? "Connected" : "Disconnected"}`, { parse_mode: "HTML" });
+    } catch (err) {
+        await ctx.reply("❌ Error checking health.");
+    }
+});
+
+bot.action("quick_backup", (ctx) => {
+    ctx.answerCbQuery();
+    ctx.reply("📦 To start a full backup, send /backup_all");
+});
 
 
 // ─── Register Command Modules ────────────────────────
