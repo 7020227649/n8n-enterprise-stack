@@ -1,0 +1,27 @@
+# Node
+node_modules/
+npm-debug.log*
+
+# Environment
+.env
+
+# Data volumes
+bot_data/
+postgres_data/
+
+# Backups (created at runtime)
+backups/
+
+# State file (runtime)
+bot-state.json
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo

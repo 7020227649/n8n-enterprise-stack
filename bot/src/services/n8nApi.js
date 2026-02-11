@@ -1,0 +1,88 @@
+
+const axios = require("axios");
+const axiosRetry = require("axios-retry");
+const config = require("../config");
+const { validateWorkflow, validateWorkflows, validateExecutions } = require("../utils/validators");
+
+const api = axios.create({
+  baseURL: `${config.n8n.baseURL}/rest`,
+  auth: {
+    username: config.n8n.user,
+    password: config.n8n.pass
+  },
+  timeout: 30000
+});
+
+axiosRetry(api, {
+  retries: 3,
+  retryDelay: axiosRetry.exponentialDelay
+});
+
+module.exports = {
+
+  // ─── Workflow CRUD ──────────────────────────────────
+
+  async getAllWorkflows() {
+    const res = await api.get("/workflows");
+    return validateWorkflows(res.data?.data || res.data);
+  },
+
+  async getWorkflow(id) {
+    const res = await api.get(`/workflows/${id}`);
+    const wf = validateWorkflow(res.data?.data || res.data);
+    if (!wf) throw new Error(`Invalid workflow data for ID ${id}`);
+    return wf;
+  },
+
+  async createWorkflow(data) {
+    const res = await api.post("/workflows", data);
+    return res.data?.data || res.data;
+  },
+
+  async updateWorkflow(id, data) {
+    const res = await api.patch(`/workflows/${id}`, data);
+    return res.data?.data || res.data;
+  },
+
+  async deleteWorkflow(id) {
+    const res = await api.delete(`/workflows/${id}`);
+    return res.data?.data || res.data;
+  },
+
+  // ─── Workflow Activation ────────────────────────────
+
+  async activateWorkflow(id) {
+    const res = await api.patch(`/workflows/${id}`, { active: true });
+    return res.data?.data || res.data;
+  },
+
+  async deactivateWorkflow(id) {
+    const res = await api.patch(`/workflows/${id}`, { active: false });
+    return res.data?.data || res.data;
+  },
+
+  // ─── Workflow Execution ─────────────────────────────
+
+  async executeWorkflow(id) {
+    const res = await api.post(`/workflows/${id}/execute`);
+    return res.data?.data || res.data;
+  },
+
+  // ─── Execution History ──────────────────────────────
+
+  async getExecutions(params = {}) {
+    const query = {
+      limit: params.limit || 20,
+      ...(params.workflowId && { workflowId: params.workflowId }),
+      ...(params.status && { status: params.status }),
+      ...(params.cursor && { cursor: params.cursor })
+    };
+    const res = await api.get("/executions", { params: query });
+    return validateExecutions(res.data);
+  },
+
+  async getExecution(id) {
+    const res = await api.get(`/executions/${id}`);
+    return res.data?.data || res.data;
+  }
+};
