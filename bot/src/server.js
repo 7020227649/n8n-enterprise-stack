@@ -60,7 +60,10 @@ function verifyWebhookSecret(req, res, next) {
     .update(payload)
     .digest("hex");
 
-  if (!crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expected))) {
+  const sigBuf = Buffer.from(signature, "utf-8");
+  const expBuf = Buffer.from(expected, "utf-8");
+
+  if (sigBuf.length !== expBuf.length || !crypto.timingSafeEqual(sigBuf, expBuf)) {
     console.warn("🚫 Webhook rejected: Invalid signature");
     return res.status(401).json({ error: "Invalid signature" });
   }

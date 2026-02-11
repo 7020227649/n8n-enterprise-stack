@@ -61,11 +61,6 @@ module.exports = {
     return res.data?.data || res.data;
   },
 
-  async createWorkflow(data) {
-    const res = await api.post("/workflows", data);
-    return res.data?.data || res.data;
-  },
-
   // ─── Workflow Execution ─────────────────────────────
 
   async executeWorkflow(id) {

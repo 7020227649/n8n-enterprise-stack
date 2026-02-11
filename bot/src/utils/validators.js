@@ -49,6 +49,9 @@ function validateExecution(obj) {
         finished: Boolean(obj.finished),
         startedAt: obj.startedAt || null,
         stoppedAt: obj.stoppedAt || null,
+        mode: obj.mode || null,
+        retryOf: obj.retryOf || null,
+        data: obj.data || null,
     };
 }
 

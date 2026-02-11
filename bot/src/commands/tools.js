@@ -42,9 +42,7 @@ module.exports = (bot) => {
 
     bot.action(/^srch_pg_(\d+)$/, async (ctx) => {
         try {
-            const page = parseInt(ctx.match[1], 10);
-            await ctx.answerCbQuery();
-            // We can't easily re-fetch the query, so just acknowledge
+            // We can't re-fetch the original query, so just acknowledge
             await ctx.answerCbQuery("Use /search again for new results");
         } catch { }
     });
@@ -198,7 +196,7 @@ module.exports = (bot) => {
             }
 
             const items = workflows.map(wf => ({
-                label: `🔧 ${wf.name} (${wf.nodes.length} nodes)`,
+                label: `🔧 ${wf.name} (${(wf.nodes || []).length} nodes)`,
                 callbackData: `tool_nodes_${wf.id}`
             }));
             const { keyboard, pageInfo } = buildPagedKeyboard(items, 0, "nodes_pg");
@@ -217,7 +215,7 @@ module.exports = (bot) => {
             const page = parseInt(ctx.match[1], 10);
             const workflows = await n8nApi.getAllWorkflows();
             const items = workflows.map(wf => ({
-                label: `🔧 ${wf.name} (${wf.nodes.length} nodes)`,
+                label: `🔧 ${wf.name} (${(wf.nodes || []).length} nodes)`,
                 callbackData: `tool_nodes_${wf.id}`
             }));
             const { keyboard, pageInfo } = buildPagedKeyboard(items, page, "nodes_pg");
