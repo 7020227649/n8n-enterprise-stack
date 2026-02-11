@@ -21,8 +21,9 @@ axiosRetry(api, {
 // Request Interceptor: Inject API Key if available
 api.interceptors.request.use(config => {
   try {
+    const appConfig = require("../config");
     const state = require("../utils/state"); // Dynamic import
-    const apiKey = state.get("n8nApiKey");
+    const apiKey = appConfig.n8n.apiKey || state.get("n8nApiKey");
 
     if (apiKey) {
       config.headers["X-N8N-API-KEY"] = apiKey;

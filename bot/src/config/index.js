@@ -8,7 +8,8 @@ const config = {
     n8n: {
         baseURL: process.env.N8N_BASE_URL || "http://n8n-main:5678",
         user: process.env.N8N_USER,
-        pass: process.env.N8N_PASS
+        pass: process.env.N8N_PASS,
+        apiKey: process.env.N8N_API_KEY
     },
     paths: {
         state: "/data/bot-state.json",
