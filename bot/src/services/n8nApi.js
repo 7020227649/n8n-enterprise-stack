@@ -27,6 +27,13 @@ api.interceptors.request.use(config => {
 
     if (apiKey) {
       config.headers["X-N8N-API-KEY"] = apiKey;
+
+      // Remove Basic Auth to prevent conflicts/401
+      delete config.auth;
+      if (config.headers["Authorization"]) {
+        delete config.headers["Authorization"];
+      }
+
       // Switch to Public API endpoint if we were using Internal API
       if (config.baseURL && config.baseURL.endsWith("/rest")) {
         config.baseURL = config.baseURL.replace("/rest", "/api/v1");
