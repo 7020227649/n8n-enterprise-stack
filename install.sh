@@ -113,9 +113,10 @@ if [ "${SKIP_ENV}" != "true" ]; then
     err "BOT_TOKEN and ADMIN_ID are required!"
   fi
 
-  # Auto-generate secure passwords
+  # Auto-generate secure passwords and secrets
   POSTGRES_PASSWORD=$(openssl rand -hex 16)
   N8N_PASS=$(openssl rand -hex 12)
+  WEBHOOK_SECRET=$(openssl rand -hex 32)
 
   cat > .env <<EOF
 BOT_TOKEN=$BOT_TOKEN
@@ -124,6 +125,7 @@ N8N_USER=admin
 N8N_PASS=$N8N_PASS
 POSTGRES_PASSWORD=$POSTGRES_PASSWORD
 N8N_VERSION=latest
+WEBHOOK_SECRET=$WEBHOOK_SECRET
 EOF
 
   log ".env created with auto-generated secure passwords."

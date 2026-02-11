@@ -31,7 +31,7 @@ services:
       N8N_BASIC_AUTH_USER: ${N8N_USER}
       N8N_BASIC_AUTH_PASSWORD: ${N8N_PASS}
     ports:
-      - "5678:5678"
+      - "127.0.0.1:5678:5678"
 
   n8n-worker:
     image: n8nio/n8n:${N8N_VERSION}
@@ -55,10 +55,13 @@ services:
       ADMIN_ID: ${ADMIN_ID}
       N8N_USER: ${N8N_USER}
       N8N_PASS: ${N8N_PASS}
+      WEBHOOK_SECRET: ${WEBHOOK_SECRET:-}
     volumes:
       - bot_data:/data
-      - /var/run/docker.sock:/var/run/docker.sock
+      - /var/run/docker.sock:/var/run/docker.sock:ro
       - /opt/n8n-enterprise-stack:/opt/n8n-enterprise-stack:ro
+    security_opt:
+      - no-new-privileges:true
     depends_on:
       - n8n-main
 
