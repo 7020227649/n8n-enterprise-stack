@@ -32,6 +32,7 @@ api.interceptors.request.use(config => {
         config.baseURL = config.baseURL.replace("/rest", "/api/v1");
       }
     }
+    console.log(`[n8n API] Requesting: ${config.method.toUpperCase()} ${config.baseURL}${config.url}`);
   } catch (err) {
     console.warn("Failed to inject API Key:", err.message);
   }
