@@ -3,115 +3,226 @@ set -e
 
 # ─────────────────────────────────────────────────────────
 #  n8n Enterprise Control Platform — One-Shot Installer
-#  Usage: curl -fsSL https://raw.githubusercontent.com/7020227649/n8n-enterprise-stack/main/install.sh | sudo bash
+#
+#  Usage:
+#    curl -fsSL https://raw.githubusercontent.com/7020227649/n8n-enterprise-stack/main/install.sh | sudo bash
+#
+#  Supports: Ubuntu 20.04+, Debian 11+, CentOS/RHEL 8+, Amazon Linux 2
 # ─────────────────────────────────────────────────────────
 
 REPO_URL="https://github.com/7020227649/n8n-enterprise-stack.git"
 INSTALL_DIR="/opt/n8n-enterprise-stack"
+MIN_RAM_MB=1024
+MIN_DISK_GB=5
 
+# ─── Colors ───────────────────────────────────────────
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 CYAN='\033[0;36m'
 RED='\033[0;31m'
 BOLD='\033[1m'
+DIM='\033[2m'
 NC='\033[0m'
 
 banner() {
+  clear
   echo ""
-  echo -e "${CYAN}╔══════════════════════════════════════════════════╗${NC}"
-  echo -e "${CYAN}║  🚀 n8n Enterprise Control Platform Installer   ║${NC}"
-  echo -e "${CYAN}║     Telegram-Controlled n8n Infrastructure      ║${NC}"
-  echo -e "${CYAN}╚══════════════════════════════════════════════════╝${NC}"
+  echo -e "${CYAN}╔═══════════════════════════════════════════════════════╗${NC}"
+  echo -e "${CYAN}║                                                       ║${NC}"
+  echo -e "${CYAN}║   🚀  ${BOLD}n8n Enterprise Control Platform${NC}${CYAN}                ║${NC}"
+  echo -e "${CYAN}║   ${DIM}Telegram-Controlled n8n Infrastructure${NC}${CYAN}              ║${NC}"
+  echo -e "${CYAN}║                                                       ║${NC}"
+  echo -e "${CYAN}║   ${DIM}49 Commands • Auto-Backup • Health Monitor${NC}${CYAN}          ║${NC}"
+  echo -e "${CYAN}║   ${DIM}Custom Domain • Free SSL • One-Click Deploy${NC}${CYAN}         ║${NC}"
+  echo -e "${CYAN}║                                                       ║${NC}"
+  echo -e "${CYAN}╚═══════════════════════════════════════════════════════╝${NC}"
   echo ""
 }
 
-log() { echo -e "  ${GREEN}[✔]${NC} $1"; }
-warn() { echo -e "  ${YELLOW}[!]${NC} $1"; }
-err() { echo -e "  ${RED}[✖]${NC} $1"; exit 1; }
+log()  { echo -e "  ${GREEN}✔${NC}  $1"; }
+warn() { echo -e "  ${YELLOW}⚠${NC}  $1"; }
+err()  { echo -e "  ${RED}✖${NC}  $1"; exit 1; }
+info() { echo -e "  ${CYAN}ℹ${NC}  $1"; }
+step() { echo ""; echo -e "  ${BOLD}━━━ $1 ━━━${NC}"; echo ""; }
 
-# ─── Check root ───────────────────────────────────────
+# ─── Pre-flight Checks ────────────────────────────────
+
 if [ "$EUID" -ne 0 ]; then
-  err "Please run as root: curl -fsSL ... | sudo bash"
+  echo ""
+  echo -e "  ${RED}✖  This installer must be run as root.${NC}"
+  echo ""
+  echo -e "  ${BOLD}Run:${NC}  curl -fsSL https://raw.githubusercontent.com/7020227649/n8n-enterprise-stack/main/install.sh | ${BOLD}sudo${NC} bash"
+  echo ""
+  exit 1
 fi
 
 banner
 
-# ─── Step 1: Install Docker ──────────────────────────
-echo -e "${BOLD}Step 1/6: Checking Docker...${NC}"
+# ─── Detect OS ─────────────────────────────────────────
+step "Step 1/7: System Check"
+
+if [ -f /etc/os-release ]; then
+  . /etc/os-release
+  OS=$ID
+  OS_VERSION=$VERSION_ID
+  OS_NAME=$PRETTY_NAME
+else
+  OS="unknown"
+  OS_NAME="Unknown Linux"
+fi
+
+log "OS: ${OS_NAME}"
+
+# Check architecture
+ARCH=$(uname -m)
+if [ "$ARCH" != "x86_64" ] && [ "$ARCH" != "aarch64" ]; then
+  err "Unsupported architecture: $ARCH (need x86_64 or aarch64)"
+fi
+log "Architecture: ${ARCH}"
+
+# Check RAM
+TOTAL_RAM_MB=$(free -m 2>/dev/null | awk '/^Mem:/{print $2}' || echo "0")
+if [ "$TOTAL_RAM_MB" -lt "$MIN_RAM_MB" ] 2>/dev/null; then
+  warn "Low RAM detected: ${TOTAL_RAM_MB}MB (recommended: ${MIN_RAM_MB}MB+)"
+  warn "Creating 2GB swap file for stability..."
+  
+  if [ ! -f /swapfile ]; then
+    fallocate -l 2G /swapfile 2>/dev/null || dd if=/dev/zero of=/swapfile bs=1M count=2048 2>/dev/null
+    chmod 600 /swapfile
+    mkswap /swapfile >/dev/null 2>&1
+    swapon /swapfile
+    echo '/swapfile none swap sw 0 0' >> /etc/fstab
+    log "2GB swap created."
+  else
+    log "Swap already exists."
+  fi
+else
+  log "RAM: ${TOTAL_RAM_MB}MB ✓"
+fi
+
+# Check disk space
+DISK_AVAIL_GB=$(df -BG / | awk 'NR==2{print $4}' | tr -d 'G')
+if [ "$DISK_AVAIL_GB" -lt "$MIN_DISK_GB" ] 2>/dev/null; then
+  err "Not enough disk space: ${DISK_AVAIL_GB}GB available (need ${MIN_DISK_GB}GB+)"
+fi
+log "Disk: ${DISK_AVAIL_GB}GB available ✓"
+
+# ─── Install Docker ──────────────────────────────────
+step "Step 2/7: Docker"
 
 if ! command -v docker &> /dev/null; then
-  warn "Docker not found. Installing..."
-  curl -fsSL https://get.docker.com | sh
-  systemctl enable docker
+  info "Installing Docker..."
+  
+  case $OS in
+    ubuntu|debian)
+      apt-get update -qq
+      apt-get install -y -qq ca-certificates curl gnupg >/dev/null 2>&1
+      install -m 0755 -d /etc/apt/keyrings
+      curl -fsSL "https://download.docker.com/linux/${OS}/gpg" | gpg --dearmor -o /etc/apt/keyrings/docker.gpg 2>/dev/null
+      chmod a+r /etc/apt/keyrings/docker.gpg
+      echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/${OS} $(lsb_release -cs 2>/dev/null || echo $VERSION_CODENAME) stable" > /etc/apt/sources.list.d/docker.list
+      apt-get update -qq
+      apt-get install -y -qq docker-ce docker-ce-cli containerd.io docker-compose-plugin >/dev/null 2>&1
+      ;;
+    centos|rhel|rocky|almalinux|fedora)
+      dnf install -y -q dnf-plugins-core >/dev/null 2>&1 || yum install -y -q yum-utils >/dev/null 2>&1
+      dnf config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo 2>/dev/null || yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo 2>/dev/null
+      dnf install -y -q docker-ce docker-ce-cli containerd.io docker-compose-plugin >/dev/null 2>&1 || yum install -y -q docker-ce docker-ce-cli containerd.io docker-compose-plugin >/dev/null 2>&1
+      ;;
+    amzn)
+      yum install -y -q docker >/dev/null 2>&1
+      curl -fsSL "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+      chmod +x /usr/local/bin/docker-compose
+      ;;
+    *)
+      info "Using generic Docker install script..."
+      curl -fsSL https://get.docker.com | sh
+      ;;
+  esac
+
+  systemctl enable docker >/dev/null 2>&1
   systemctl start docker
   log "Docker installed."
 else
-  log "Docker already installed ($(docker --version | cut -d' ' -f3 | tr -d ','))"
+  log "Docker: $(docker --version | cut -d' ' -f3 | tr -d ',') ✓"
 fi
 
+# Verify Docker Compose
 if ! docker compose version &> /dev/null; then
-  warn "Docker Compose plugin not found. Installing..."
-  apt-get update -y && apt-get install -y docker-compose-plugin
-  log "Docker Compose installed."
+  if command -v docker-compose &> /dev/null; then
+    log "Docker Compose (standalone) available."
+  else
+    err "Docker Compose not found. Please install manually."
+  fi
 else
-  log "Docker Compose available."
+  log "Docker Compose: $(docker compose version --short 2>/dev/null || echo 'available') ✓"
 fi
 
-# ─── Step 2: Install Git ─────────────────────────────
-echo ""
-echo -e "${BOLD}Step 2/6: Checking Git...${NC}"
+# ─── Install Git ─────────────────────────────────────
+step "Step 3/7: Git"
 
 if ! command -v git &> /dev/null; then
-  apt-get update -y && apt-get install -y git
+  case $OS in
+    ubuntu|debian)  apt-get install -y -qq git >/dev/null 2>&1 ;;
+    centos|rhel|rocky|almalinux|fedora|amzn) yum install -y -q git >/dev/null 2>&1 ;;
+    *) apt-get install -y git 2>/dev/null || yum install -y git 2>/dev/null ;;
+  esac
   log "Git installed."
 else
-  log "Git already installed."
+  log "Git: $(git --version | cut -d' ' -f3) ✓"
 fi
 
-# ─── Step 3: Clone Repository ────────────────────────
-echo ""
-echo -e "${BOLD}Step 3/6: Cloning repository...${NC}"
+# ─── Clone Repository ────────────────────────────────
+step "Step 4/7: Repository"
 
-if [ -d "$INSTALL_DIR" ]; then
-  warn "Directory $INSTALL_DIR exists. Pulling latest..."
+if [ -d "$INSTALL_DIR/.git" ]; then
+  warn "Existing installation found at $INSTALL_DIR"
   cd "$INSTALL_DIR"
-  git pull origin main || true
+  git fetch origin main --quiet 2>/dev/null || true
+  git reset --hard origin/main --quiet 2>/dev/null || true
+  log "Updated to latest version."
 else
-  git clone "$REPO_URL" "$INSTALL_DIR"
+  rm -rf "$INSTALL_DIR" 2>/dev/null || true
+  git clone --depth 1 "$REPO_URL" "$INSTALL_DIR" --quiet
   cd "$INSTALL_DIR"
+  log "Cloned to $INSTALL_DIR"
 fi
 
-log "Repository ready at $INSTALL_DIR"
-
-# ─── Step 4: Configure ───────────────────────────────
-echo ""
-echo -e "${BOLD}Step 4/6: Configuration${NC}"
-echo ""
+# ─── Configure Environment ───────────────────────────
+step "Step 5/7: Configuration"
 
 if [ -f .env ]; then
-  echo -e "  ${YELLOW}Existing .env found. Overwrite? (y/N):${NC}"
-  read -r OVERWRITE
-  if [ "$OVERWRITE" != "y" ] && [ "$OVERWRITE" != "Y" ]; then
-    log "Keeping existing .env"
+  echo -e "  ${YELLOW}Existing configuration found.${NC}"
+  echo ""
+  read -p "  → Keep existing config? (Y/n): " KEEP_ENV
+  
+  if [ "$KEEP_ENV" != "n" ] && [ "$KEEP_ENV" != "N" ]; then
+    log "Keeping existing configuration."
     SKIP_ENV=true
-  else
-    rm .env
   fi
 fi
 
 if [ "${SKIP_ENV}" != "true" ]; then
-  echo -e "  ${CYAN}Telegram Bot Token${NC}"
-  echo -e "  ${YELLOW}(Get from @BotFather on Telegram)${NC}"
-  read -p "  → BOT_TOKEN: " BOT_TOKEN
+  echo -e "  ${CYAN}${BOLD}Telegram Bot Setup${NC}"
+  echo -e "  ${DIM}You need a Telegram bot token and your user ID.${NC}"
+  echo ""
+  echo -e "  ${DIM}1. Open Telegram → search @BotFather → /newbot${NC}"
+  echo -e "  ${DIM}2. Open Telegram → search @userinfobot → get your ID${NC}"
+  echo ""
+
+  while true; do
+    read -p "  → Bot Token: " BOT_TOKEN
+    if [ -n "$BOT_TOKEN" ]; then break; fi
+    echo -e "  ${RED}  Bot Token is required!${NC}"
+  done
 
   echo ""
-  echo -e "  ${CYAN}Telegram User ID${NC}"
-  echo -e "  ${YELLOW}(Get from @userinfobot on Telegram)${NC}"
-  read -p "  → ADMIN_ID: " ADMIN_ID
 
-  if [ -z "$BOT_TOKEN" ] || [ -z "$ADMIN_ID" ]; then
-    err "BOT_TOKEN and ADMIN_ID are required!"
-  fi
+  while true; do
+    read -p "  → Admin ID (your Telegram user ID): " ADMIN_ID
+    if [ -n "$ADMIN_ID" ]; then break; fi
+    echo -e "  ${RED}  Admin ID is required!${NC}"
+  done
 
   # Auto-generate secure passwords and secrets
   POSTGRES_PASSWORD=$(openssl rand -hex 16)
@@ -128,35 +239,49 @@ N8N_VERSION=latest
 WEBHOOK_SECRET=$WEBHOOK_SECRET
 EOF
 
-  log ".env created with auto-generated secure passwords."
+  chmod 600 .env
+  log "Configuration saved (passwords auto-generated)."
 fi
 
-# ─── Step 5: Domain & SSL (Optional) ─────────────────
+# ─── Domain & SSL (Optional) ─────────────────────────
+step "Step 6/7: Domain & SSL (Optional)"
+
+echo -e "  Connect a custom domain with free SSL certificate?"
+echo -e "  ${DIM}Requirement: Domain's A/AAAA record must point to this server.${NC}"
 echo ""
-echo -e "${BOLD}Step 5/6: Domain & SSL Setup${NC}"
-echo ""
-echo -e "  Do you want to connect a custom domain with free SSL?"
-echo -e "  ${YELLOW}(Your domain's A record must point to this server's IP)${NC}"
-echo ""
-read -p "  → Enter domain (or press Enter to skip): " DOMAIN
+read -p "  → Domain (or press Enter to skip): " DOMAIN
+
+DOMAIN_CONFIGURED=false
 
 if [ -n "$DOMAIN" ]; then
   echo ""
-  read -p "  → Email for SSL certificate: " SSL_EMAIL
 
-  if [ -z "$SSL_EMAIL" ]; then
-    err "Email is required for SSL certificate."
-  fi
+  while true; do
+    read -p "  → Email for SSL (Let's Encrypt): " SSL_EMAIL
+    if [ -n "$SSL_EMAIL" ]; then break; fi
+    echo -e "  ${RED}  Email is required for SSL certificate!${NC}"
+  done
 
-  # Install Nginx & Certbot
-  log "Installing Nginx & Certbot..."
-  apt-get update -y
-  apt-get install -y nginx certbot python3-certbot-nginx
-  systemctl enable nginx
+  info "Installing Nginx & Certbot..."
+
+  case $OS in
+    ubuntu|debian)
+      apt-get update -qq
+      apt-get install -y -qq nginx certbot python3-certbot-nginx >/dev/null 2>&1
+      ;;
+    centos|rhel|rocky|almalinux|fedora)
+      dnf install -y -q nginx certbot python3-certbot-nginx >/dev/null 2>&1 || yum install -y -q nginx certbot python3-certbot-nginx >/dev/null 2>&1
+      ;;
+    *)
+      apt-get install -y nginx certbot python3-certbot-nginx 2>/dev/null || yum install -y nginx certbot python3-certbot-nginx 2>/dev/null
+      ;;
+  esac
+
+  systemctl enable nginx >/dev/null 2>&1
   systemctl start nginx
 
-  # Create Nginx config
-  cat > /etc/nginx/sites-available/n8n <<NGINX
+  # Nginx reverse proxy config
+  cat > /etc/nginx/sites-available/n8n 2>/dev/null <<NGINX || cat > /etc/nginx/conf.d/n8n.conf <<NGINX
 server {
     listen 80;
     server_name $DOMAIN;
@@ -177,63 +302,105 @@ server {
 }
 NGINX
 
-  ln -sf /etc/nginx/sites-available/n8n /etc/nginx/sites-enabled/
-  rm -f /etc/nginx/sites-enabled/default
+  # Enable site (Debian/Ubuntu style)
+  if [ -d /etc/nginx/sites-enabled ]; then
+    ln -sf /etc/nginx/sites-available/n8n /etc/nginx/sites-enabled/
+    rm -f /etc/nginx/sites-enabled/default
+  fi
 
-  # Test and reload
-  nginx -t
+  nginx -t >/dev/null 2>&1
   systemctl reload nginx
 
   log "Nginx configured for ${DOMAIN}"
 
-  # Get SSL certificate
-  log "Obtaining SSL certificate..."
-  certbot --nginx -d "$DOMAIN" --non-interactive --agree-tos -m "$SSL_EMAIL" --redirect
+  # SSL certificate
+  info "Obtaining SSL certificate (this may take a minute)..."
+  certbot --nginx -d "$DOMAIN" --non-interactive --agree-tos -m "$SSL_EMAIL" --redirect 2>&1 | tail -3
 
-  log "SSL certificate installed! ✨"
+  log "SSL certificate installed! 🔒"
   DOMAIN_CONFIGURED=true
 else
-  warn "Skipped domain setup. n8n accessible via IP:5678"
+  warn "Skipped. n8n will be accessible via IP address."
 fi
 
-# ─── Step 6: Deploy ──────────────────────────────────
-echo ""
-echo -e "${BOLD}Step 6/6: Deploying with Docker Compose...${NC}"
-echo ""
+# ─── Firewall ─────────────────────────────────────────
+if command -v ufw &> /dev/null; then
+  ufw allow 22/tcp >/dev/null 2>&1 || true
+  ufw allow 80/tcp >/dev/null 2>&1 || true
+  ufw allow 443/tcp >/dev/null 2>&1 || true
+  
+  if [ "$DOMAIN_CONFIGURED" = "false" ]; then
+    ufw allow 5678/tcp >/dev/null 2>&1 || true
+  fi
+  
+  log "Firewall rules configured."
+fi
+
+# ─── Deploy ──────────────────────────────────────────
+step "Step 7/7: Deploying"
 
 cd "$INSTALL_DIR"
-docker compose up -d --build
 
-# ─── Done! ────────────────────────────────────────────
-SERVER_IP=$(curl -s ifconfig.me 2>/dev/null || echo 'your-server-ip')
+info "Building and starting containers (this may take 2-5 minutes)..."
+echo ""
+
+docker compose up -d --build 2>&1 | while IFS= read -r line; do
+  echo -e "  ${DIM}  ${line}${NC}"
+done
+
+echo ""
+
+# Wait for containers to be healthy
+info "Waiting for services to start..."
+sleep 10
+
+# Check if containers are running
+RUNNING=$(docker compose ps --format "{{.State}}" 2>/dev/null | grep -c "running" || echo "0")
+TOTAL=$(docker compose ps --format "{{.State}}" 2>/dev/null | wc -l || echo "0")
+
+if [ "$RUNNING" -gt 0 ]; then
+  log "Containers running: ${RUNNING}/${TOTAL}"
+else
+  warn "Containers may still be starting. Check: docker compose ps"
+fi
+
+# ─── Completion ──────────────────────────────────────
+SERVER_IP=$(curl -s --connect-timeout 5 ifconfig.me 2>/dev/null || curl -s --connect-timeout 5 icanhazip.com 2>/dev/null || hostname -I 2>/dev/null | awk '{print $1}' || echo 'your-server-ip')
 N8N_PASS_DISPLAY=${N8N_PASS:-$(grep N8N_PASS .env 2>/dev/null | cut -d'=' -f2)}
 
 echo ""
-echo -e "${GREEN}╔══════════════════════════════════════════════════╗${NC}"
-echo -e "${GREEN}║         🎉 INSTALLATION COMPLETE! 🎉            ║${NC}"
-echo -e "${GREEN}╚══════════════════════════════════════════════════╝${NC}"
+echo -e "${GREEN}╔═══════════════════════════════════════════════════════╗${NC}"
+echo -e "${GREEN}║                                                       ║${NC}"
+echo -e "${GREEN}║          🎉  INSTALLATION COMPLETE!  🎉              ║${NC}"
+echo -e "${GREEN}║                                                       ║${NC}"
+echo -e "${GREEN}╚═══════════════════════════════════════════════════════╝${NC}"
 echo ""
 
 if [ "$DOMAIN_CONFIGURED" = "true" ]; then
-  echo -e "  ${CYAN}n8n Web UI:${NC}    ${GREEN}https://${DOMAIN}${NC}"
+  echo -e "  ${BOLD}🌐 n8n Web UI:${NC}     ${GREEN}https://${DOMAIN}${NC}"
+  echo -e "  ${BOLD}🔒 SSL:${NC}            Enabled (auto-renews)"
 else
-  echo -e "  ${CYAN}n8n Web UI:${NC}    http://${SERVER_IP}:5678"
-fi
-
-echo -e "  ${CYAN}n8n Login:${NC}     admin / ${N8N_PASS_DISPLAY}"
-echo -e "  ${CYAN}Telegram Bot:${NC}  Open Telegram → send /start to your bot"
-echo ""
-
-if [ "$DOMAIN_CONFIGURED" = "true" ]; then
-  echo -e "  ${GREEN}🔒 SSL:${NC}        Enabled (auto-renews via Certbot)"
+  echo -e "  ${BOLD}🌐 n8n Web UI:${NC}     ${GREEN}http://${SERVER_IP}:5678${NC}"
 fi
 
 echo ""
-echo -e "  ${BOLD}Useful commands:${NC}"
-echo -e "    cd /opt/n8n-enterprise-stack"
-echo -e "    docker compose logs bot -f       # Bot logs"
-echo -e "    docker compose logs n8n-main -f  # n8n logs"
-echo -e "    docker compose ps                # Container status"
+echo -e "  ${BOLD}👤 Login:${NC}"
+echo -e "     Username:     ${CYAN}admin${NC}"
+echo -e "     Password:     ${CYAN}${N8N_PASS_DISPLAY}${NC}"
 echo ""
-echo -e "  ${YELLOW}⚠️  Save your n8n password: ${N8N_PASS_DISPLAY}${NC}"
+echo -e "  ${BOLD}🤖 Telegram Bot:${NC}   Open Telegram → send ${CYAN}/start${NC} to your bot"
+echo ""
+echo -e "  ${DIM}────────────────────────────────────────────────────${NC}"
+echo ""
+echo -e "  ${BOLD}📋 Quick Reference:${NC}"
+echo -e "     ${DIM}cd /opt/n8n-enterprise-stack${NC}"
+echo -e "     ${DIM}docker compose ps                # Check status${NC}"
+echo -e "     ${DIM}docker compose logs bot -f        # Bot logs${NC}"
+echo -e "     ${DIM}docker compose logs n8n-main -f   # n8n logs${NC}"
+echo -e "     ${DIM}docker compose down               # Stop all${NC}"
+echo -e "     ${DIM}docker compose up -d              # Start all${NC}"
+echo ""
+echo -e "  ${RED}${BOLD}⚠️  SAVE YOUR PASSWORD: ${N8N_PASS_DISPLAY}${NC}"
+echo ""
+echo -e "  ${DIM}49 Telegram commands ready: /help for full menu${NC}"
 echo ""
