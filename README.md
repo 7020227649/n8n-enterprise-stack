@@ -45,48 +45,41 @@
 
 ---
 
-## 📦 Quick Start (5 minutes)
+## 📦 Quick Start — One Command Install
 
 ### Prerequisites
-- A **VPS** (Ubuntu/Debian recommended, 1GB+ RAM)
-- **Docker** & **Docker Compose** installed
+- A **VPS** (Ubuntu/Debian, 1GB+ RAM)
 - A **Telegram Bot Token** (from [@BotFather](https://t.me/BotFather))
 - Your **Telegram User ID** (from [@userinfobot](https://t.me/userinfobot))
 
-### Step 1: Clone
+### Install (1 command!)
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/n8n-enterprise-stack-API.git
-cd n8n-enterprise-stack-API
+curl -fsSL https://raw.githubusercontent.com/7020227649/n8n-enterprise-stack/main/install.sh | sudo bash
 ```
 
-### Step 2: Configure
+This will:
+1. ✅ Install Docker & Git (if not present)
+2. ✅ Clone the repository to `/opt/n8n-enterprise-stack`
+3. ✅ Ask for your **Bot Token** and **Admin ID**
+4. ✅ Auto-generate secure database passwords
+5. ✅ Deploy all 5 containers
+6. ✅ Show your n8n login credentials
+
+After install: **Open Telegram → send `/start` to your bot** 🎉
+
+---
+
+### Manual Install (Alternative)
 
 ```bash
+git clone https://github.com/7020227649/n8n-enterprise-stack.git /opt/n8n-enterprise-stack
+cd /opt/n8n-enterprise-stack
 cp .env.example .env
-nano .env
-```
-
-Fill in your values:
-
-```env
-BOT_TOKEN=123456:ABC-DEF...       # From @BotFather
-ADMIN_ID=987654321                 # Your Telegram user ID
-N8N_USER=admin                     # n8n login username
-N8N_PASS=YourSecurePassword123     # n8n login password
-POSTGRES_PASSWORD=AnotherPassword  # Database password
-N8N_VERSION=latest                 # Or pin to e.g. 1.30.1
-```
-
-### Step 3: Deploy
-
-```bash
+nano .env                  # Fill in your values
 docker compose up -d --build
 ```
 
-### Step 4: Use
-
-Open Telegram → find your bot → send `/start` 🎉
 
 ---
 
