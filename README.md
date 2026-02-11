@@ -83,6 +83,36 @@ docker compose up -d --build
 
 ---
 
+## 🚚 Server Migration
+
+Move your entire n8n stack (workflows, history, database) to a new server in minutes.
+
+### 1. Export Data (Old Server)
+```bash
+cd /opt/n8n-enterprise-stack
+sudo ./migrate.sh export
+# Creates: n8n-migration-<date>.tar.gz
+```
+
+### 2. Import Data (New Server)
+1. **Prepare the new server** (installs Docker, etc.):
+   ```bash
+   curl -fsSL https://raw.githubusercontent.com/7020227649/n8n-enterprise-stack/main/install.sh | sudo bash
+   ```
+   *(You can skip the setup wizard if you plan to overwrite everything)*
+
+2. **Transfer & Restore**:
+   ```bash
+   # Copy the migration file to the new server
+   scp n8n-migration-Obs.tar.gz root@new-ip:/root/
+
+   # Run import
+   cd /opt/n8n-enterprise-stack
+   sudo ./migrate.sh import /root/n8n-migration-Obs.tar.gz
+   ```
+
+---
+
 ## 📱 All Commands
 
 ### Workflow Control
