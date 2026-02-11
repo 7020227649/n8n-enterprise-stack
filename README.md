@@ -55,7 +55,7 @@
 ### Install (1 command!)
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/7020227649/n8n-enterprise-stack/main/install.sh | sudo bash
+sudo apt update && sudo apt install -y curl && curl -fsSL https://raw.githubusercontent.com/7020227649/n8n-enterprise-stack/main/install.sh | sudo bash
 ```
 
 This will:
@@ -97,7 +97,7 @@ sudo ./migrate.sh export
 ### 2. Import Data (New Server)
 1. **Prepare the new server** (installs Docker, etc.):
    ```bash
-   curl -fsSL https://raw.githubusercontent.com/7020227649/n8n-enterprise-stack/main/install.sh | sudo bash
+   sudo apt update && sudo apt install -y curl && curl -fsSL https://raw.githubusercontent.com/7020227649/n8n-enterprise-stack/main/install.sh | sudo bash
    ```
    *(You can skip the setup wizard if you plan to overwrite everything)*
 
