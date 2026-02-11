@@ -45,6 +45,32 @@ err()  { echo -e "  ${RED}✖${NC}  $1"; exit 1; }
 info() { echo -e "  ${CYAN}ℹ${NC}  $1"; }
 step() { echo ""; echo -e "  ${BOLD}━━━ $1 ━━━${NC}"; echo ""; }
 
+# ─── Safe read (works when piped via curl | bash) ─────
+# When using curl ... | bash, stdin is the pipe.
+# We must read user input from /dev/tty (the actual terminal).
+prompt() {
+  local var_name=$1
+  local prompt_text=$2
+  local value
+  read -p "$prompt_text" value < /dev/tty
+  eval "$var_name=\"$value\""
+}
+
+prompt_required() {
+  local var_name=$1
+  local prompt_text=$2
+  local error_text=$3
+  local value
+  while true; do
+    read -p "$prompt_text" value < /dev/tty
+    if [ -n "$value" ]; then
+      eval "$var_name=\"$value\""
+      return
+    fi
+    echo -e "  ${RED}  ${error_text}${NC}"
+  done
+}
+
 # ─── Pre-flight Checks ────────────────────────────────
 
 if [ "$EUID" -ne 0 ]; then
@@ -57,6 +83,15 @@ if [ "$EUID" -ne 0 ]; then
 fi
 
 banner
+
+# ─── Ensure curl & openssl exist (needed for install) ──
+for cmd in curl openssl; do
+  if ! command -v $cmd &> /dev/null; then
+    apt-get update -qq 2>/dev/null && apt-get install -y -qq $cmd >/dev/null 2>&1 || \
+    yum install -y -q $cmd >/dev/null 2>&1 || \
+    dnf install -y -q $cmd >/dev/null 2>&1 || true
+  fi
+done
 
 # ─── Detect OS ─────────────────────────────────────────
 step "Step 1/7: System Check"
@@ -194,7 +229,7 @@ step "Step 5/7: Configuration"
 if [ -f .env ]; then
   echo -e "  ${YELLOW}Existing configuration found.${NC}"
   echo ""
-  read -p "  → Keep existing config? (Y/n): " KEEP_ENV
+  prompt KEEP_ENV "  → Keep existing config? (Y/n): "
   
   if [ "$KEEP_ENV" != "n" ] && [ "$KEEP_ENV" != "N" ]; then
     log "Keeping existing configuration."
@@ -210,19 +245,11 @@ if [ "${SKIP_ENV}" != "true" ]; then
   echo -e "  ${DIM}2. Open Telegram → search @userinfobot → get your ID${NC}"
   echo ""
 
-  while true; do
-    read -p "  → Bot Token: " BOT_TOKEN
-    if [ -n "$BOT_TOKEN" ]; then break; fi
-    echo -e "  ${RED}  Bot Token is required!${NC}"
-  done
+  prompt_required BOT_TOKEN "  → Bot Token: " "Bot Token is required!"
 
   echo ""
 
-  while true; do
-    read -p "  → Admin ID (your Telegram user ID): " ADMIN_ID
-    if [ -n "$ADMIN_ID" ]; then break; fi
-    echo -e "  ${RED}  Admin ID is required!${NC}"
-  done
+  prompt_required ADMIN_ID "  → Admin ID (your Telegram user ID): " "Admin ID is required!"
 
   # Auto-generate secure passwords and secrets
   POSTGRES_PASSWORD=$(openssl rand -hex 16)
@@ -249,18 +276,14 @@ step "Step 6/7: Domain & SSL (Optional)"
 echo -e "  Connect a custom domain with free SSL certificate?"
 echo -e "  ${DIM}Requirement: Domain's A/AAAA record must point to this server.${NC}"
 echo ""
-read -p "  → Domain (or press Enter to skip): " DOMAIN
+prompt DOMAIN "  → Domain (or press Enter to skip): "
 
 DOMAIN_CONFIGURED=false
 
 if [ -n "$DOMAIN" ]; then
   echo ""
 
-  while true; do
-    read -p "  → Email for SSL (Let's Encrypt): " SSL_EMAIL
-    if [ -n "$SSL_EMAIL" ]; then break; fi
-    echo -e "  ${RED}  Email is required for SSL certificate!${NC}"
-  done
+  prompt_required SSL_EMAIL "  → Email for SSL (Let's Encrypt): " "Email is required for SSL certificate!"
 
   info "Installing Nginx & Certbot..."
 
