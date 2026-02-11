@@ -66,8 +66,8 @@ services:
       WEBHOOK_SECRET: ${WEBHOOK_SECRET:-}
     volumes:
       - bot_data:/data
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-      - /opt/n8n-enterprise-stack:/opt/n8n-enterprise-stack:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /opt/n8n-enterprise-stack:/opt/n8n-enterprise-stack
     security_opt:
       - no-new-privileges:true
     depends_on:

@@ -146,4 +146,36 @@ module.exports = (bot) => {
     }
   });
 
+
+
+  // ─── /backup_system — Full system backup ─────────────
+
+  bot.command("backup_system", async (ctx) => {
+    // Only admin
+    if (ctx.from.id.toString() !== config.adminId) {
+      return ctx.reply("⛔ Admin only.");
+    }
+
+    try {
+      await ctx.reply("📦 <b>Starting Full System Backup...</b>\n\n1. Stopping n8n & Database...\n2. Compressing volumes...\n3. Bundling config files...", { parse_mode: "HTML" });
+
+      const systemService = require("../services/systemService");
+      const { chunks, name } = await systemService.backupSystem();
+
+      await ctx.reply(`✅ Backup created: <code>${name}</code>\n📦 Sending ${chunks.length} part(s)...`, { parse_mode: "HTML" });
+
+      for (let i = 0; i < chunks.length; i++) {
+        const label = chunks.length > 1 ? ` (Part ${i + 1}/${chunks.length})` : "";
+        await ctx.replyWithDocument(
+          { source: chunks[i], filename: `${name}${chunks.length > 1 ? `.part${i + 1}` : ''}` }
+        );
+      }
+
+      await ctx.reply("✅ <b>System Backup Complete!</b>\n\n⚠️ Keep these files safe. To restore, use /restore_system.", { parse_mode: "HTML" });
+
+    } catch (err) {
+      await ctx.reply(`❌ System backup failed: ${err.message}`);
+    }
+  });
+
 };

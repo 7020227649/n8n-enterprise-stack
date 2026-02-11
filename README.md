@@ -128,8 +128,11 @@ sudo ./migrate.sh export
 ### Backup & Restore
 | Command | Description |
 |---|---|
-| `/backup_all` | Full backup (ZIP, auto-chunked) |
+| `/backup_all` | Full workflow-only backup (ZIP) |
 | `/backup_workflow` | Backup single workflow |
+| `/backup_system` | **Full System Backup** (App + DB + Config) |
+| `/restore_workflow` | Restore workflows from backup file |
+| `/restore_system` | **Full System Restore** from backup file(s) |
 | `/daily_backup_on` | Enable daily auto-backup (3 AM) |
 | `/daily_backup_off` | Disable daily auto-backup |
 | `/daily_backup_status` | Check daily backup status |
