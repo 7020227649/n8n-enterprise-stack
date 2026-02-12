@@ -4,7 +4,7 @@
 
 ![Node.js](https://img.shields.io/badge/Node.js-20-green)
 ![Docker](https://img.shields.io/badge/Docker-Compose-blue)
-![License](https://img.shields.io/badge/License-MIT-yellow)
+![License](https://img.shields.io/badge/License-Proprietary-red)
 ![Commands](https://img.shields.io/badge/Commands-53-purple)
 
 ---
@@ -291,7 +291,9 @@ n8n-enterprise-stack/
 
 ## 📄 License
 
-MIT License — feel free to use this in your own projects.
+**Proprietary — All Rights Reserved.**
+
+This software is the intellectual property of its owner. Unauthorized copying, modification, distribution, or use of this software, in whole or in part, is strictly prohibited without prior written permission.
 
 ---
 
