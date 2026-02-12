@@ -47,6 +47,7 @@ module.exports = (bot) => {
                 `/clone — Duplicate a workflow`,
                 `/rename — Rename a workflow`,
                 `/export — Download workflow as JSON`,
+                `/import — Upload .json or .zip to import workflows`,
                 `/nodes — View workflow node details`,
                 `/schedule — Show scheduled/cron workflows`,
                 `/webhook_url — Show webhook URLs`,
