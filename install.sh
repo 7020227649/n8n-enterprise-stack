@@ -226,6 +226,9 @@ fi
 # ─── Configure Environment ───────────────────────────
 step "Step 5/7: Configuration"
 
+# Detect public IP (needed for both new and existing configs)
+SERVER_IP=$(curl -s --connect-timeout 5 ifconfig.me 2>/dev/null || curl -s --connect-timeout 5 icanhazip.com 2>/dev/null || hostname -I 2>/dev/null | awk '{print $1}' || echo '127.0.0.1')
+
 if [ -f .env ]; then
   echo -e "  ${YELLOW}Existing configuration found.${NC}"
   echo ""
@@ -258,10 +261,6 @@ if [ "${SKIP_ENV}" != "true" ]; then
   echo ""
   prompt N8N_API_KEY "  → API Key (or press Enter to skip): "
 
-  # Detect public IP for default WEBHOOK_URL
-  SERVER_IP=$(curl -s --connect-timeout 5 ifconfig.me 2>/dev/null || curl -s --connect-timeout 5 icanhazip.com 2>/dev/null || hostname -I 2>/dev/null | awk '{print $1}' || echo '127.0.0.1')
-
-
   # Auto-generate secure passwords and secrets
   POSTGRES_PASSWORD=$(openssl rand -hex 16)
   N8N_PASS=$(openssl rand -hex 12)
@@ -282,6 +281,14 @@ EOF
 
   chmod 600 .env
   log "Configuration saved (passwords auto-generated)."
+fi
+
+# Ensure WEBHOOK_URL exists (even if keeping old config)
+if ! grep -q "WEBHOOK_URL=" .env; then
+  echo "" >> .env
+  echo "# Auto-added by installer" >> .env
+  echo "WEBHOOK_URL=http://${SERVER_IP}:5678" >> .env
+  log "Added missing WEBHOOK_URL to .env"
 fi
 
 # ─── Domain & SSL (Optional) ─────────────────────────
