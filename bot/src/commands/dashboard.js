@@ -101,9 +101,9 @@ module.exports = (bot) => {
             if (n8nVersion === "Unknown") {
                 try {
                     n8nVersion = await new Promise((resolve, reject) => {
-                        exec("docker exec n8n-main n8n --version 2>/dev/null || docker exec n8n n8n --version 2>/dev/null", {
-                            timeout: 10000
-                        }, (err, stdout) => {
+                        // Find the actual container name dynamically (Docker Compose prefixes it)
+                        const cmd = `CONTAINER=$(docker ps --filter "name=n8n-main" --format "{{.Names}}" | head -1) && docker exec "$CONTAINER" n8n --version 2>/dev/null`;
+                        exec(cmd, { timeout: 15000 }, (err, stdout) => {
                             if (err) return reject(err);
                             const ver = (stdout || "").trim();
                             if (ver) resolve(ver);
@@ -118,11 +118,10 @@ module.exports = (bot) => {
             if (n8nVersion === "Unknown") {
                 try {
                     n8nVersion = await new Promise((resolve, reject) => {
-                        exec("docker inspect --format='{{.Config.Image}}' n8n-main 2>/dev/null || docker inspect --format='{{.Config.Image}}' n8n 2>/dev/null", {
-                            timeout: 10000
-                        }, (err, stdout) => {
+                        const cmd = `docker ps --filter "name=n8n-main" --format "{{.Image}}" | head -1`;
+                        exec(cmd, { timeout: 10000 }, (err, stdout) => {
                             if (err) return reject(err);
-                            const image = (stdout || "").trim().replace(/'/g, "");
+                            const image = (stdout || "").trim();
                             // Extract tag, e.g. "n8nio/n8n:1.70.2" → "1.70.2"
                             const tag = image.split(":").pop();
                             if (tag && tag !== image && tag !== "latest") resolve(tag);
@@ -131,6 +130,12 @@ module.exports = (bot) => {
                     });
                     if (n8nEdition === "Unknown") n8nEdition = "Community";
                 } catch { }
+            }
+
+            // Attempt 4: Read N8N_VERSION from environment (set in docker-compose)
+            if (n8nVersion === "Unknown" && process.env.N8N_VERSION && process.env.N8N_VERSION !== "latest") {
+                n8nVersion = process.env.N8N_VERSION;
+                if (n8nEdition === "Unknown") n8nEdition = "Community";
             }
 
             const nodeVersion = process.version;

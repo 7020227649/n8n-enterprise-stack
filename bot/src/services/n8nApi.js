@@ -163,13 +163,38 @@ module.exports = {
 
   async getSettings() {
     // The /settings endpoint only exists on the Internal REST API, NOT the
-    // Public API v1.  Always call the internal endpoint directly (bypassing
-    // the interceptor that rewrites the base URL in API‑key mode).
+    // Public API v1.  Modern n8n requires session-cookie auth (login first).
 
-    // Strategy 1: Internal REST API with Basic Auth (most reliable)
+    const baseURL = config.n8n.baseURL;
+
+    // Strategy 1: Login via /rest/login, then GET /rest/settings with cookie
     if (config.n8n.user && config.n8n.pass) {
       try {
-        const res = await axios.get(`${config.n8n.baseURL}/rest/settings`, {
+        // n8n login expects email + password (N8N_USER is typically the email)
+        const loginRes = await axios.post(`${baseURL}/rest/login`, {
+          email: config.n8n.user,
+          password: config.n8n.pass,
+        }, { timeout: 10000 });
+
+        // Extract session cookie from Set-Cookie header
+        const cookies = loginRes.headers["set-cookie"];
+        if (cookies) {
+          const cookieStr = cookies.map(c => c.split(";")[0]).join("; ");
+          const settingsRes = await axios.get(`${baseURL}/rest/settings`, {
+            headers: { Cookie: cookieStr },
+            timeout: 10000,
+          });
+          return settingsRes.data?.data || settingsRes.data;
+        }
+      } catch (err) {
+        console.warn("[n8n API] Settings via session login failed:", err.message);
+      }
+    }
+
+    // Strategy 2: Try Basic Auth (works on older n8n versions)
+    if (config.n8n.user && config.n8n.pass) {
+      try {
+        const res = await axios.get(`${baseURL}/rest/settings`, {
           auth: { username: config.n8n.user, password: config.n8n.pass },
           timeout: 10000,
         });
@@ -179,24 +204,15 @@ module.exports = {
       }
     }
 
-    // Strategy 2: Internal REST API without auth (works if n8n has no
-    //             owner set up yet, or when accessed from localhost/Docker)
+    // Strategy 3: No-auth request (n8n returns partial settings without auth,
+    //             including the version in some configurations)
     try {
-      const res = await axios.get(`${config.n8n.baseURL}/rest/settings`, {
+      const res = await axios.get(`${baseURL}/rest/settings`, {
         timeout: 10000,
       });
       return res.data?.data || res.data;
     } catch (err) {
       console.warn("[n8n API] Settings without auth failed:", err.message);
-    }
-
-    // Strategy 3: Use the main api instance as a last resort (may fail in
-    //             API‑key mode, but worth a try if the above two failed)
-    try {
-      const res = await api.get("/settings");
-      return res.data?.data || res.data;
-    } catch (err) {
-      console.warn("[n8n API] Settings via api instance failed:", err.message);
     }
 
     // Nothing worked — return a minimal object so callers don't crash
