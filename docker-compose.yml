@@ -32,6 +32,7 @@ services:
       N8N_BASIC_AUTH_PASSWORD: ${N8N_PASS}
       N8N_COMMUNITY_PACKAGES_ENABLED: "true"
       N8N_REINSTALL_MISSING_PACKAGES: "true"
+      WEBHOOK_URL: ${WEBHOOK_URL}
     ports:
       - "127.0.0.1:5678:5678"
     volumes:
@@ -52,6 +53,7 @@ services:
       QUEUE_BULL_REDIS_HOST: redis
       N8N_COMMUNITY_PACKAGES_ENABLED: "true"
       N8N_REINSTALL_MISSING_PACKAGES: "true"
+      WEBHOOK_URL: ${WEBHOOK_URL}
     volumes:
       - n8n_data:/home/node/.n8n
 
