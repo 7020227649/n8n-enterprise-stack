@@ -18,32 +18,41 @@ axiosRetry(api, {
   retryDelay: axiosRetry.exponentialDelay
 });
 
+/**
+ * Detect whether we are using API Key auth (Public API) or Basic Auth (Internal).
+ * Returns true if API Key is available.
+ */
+function isApiKeyMode() {
+  const state = require("../utils/state"); // Dynamic import
+  const apiKey = config.n8n.apiKey || state.get("n8nApiKey");
+  return !!apiKey;
+}
+
 // Request Interceptor: Inject API Key if available
-api.interceptors.request.use(config => {
+api.interceptors.request.use(reqConfig => {
   try {
-    const appConfig = require("../config");
     const state = require("../utils/state"); // Dynamic import
-    const apiKey = appConfig.n8n.apiKey || state.get("n8nApiKey");
+    const apiKey = config.n8n.apiKey || state.get("n8nApiKey");
 
     if (apiKey) {
-      config.headers["X-N8N-API-KEY"] = apiKey;
+      reqConfig.headers["X-N8N-API-KEY"] = apiKey;
 
       // Remove Basic Auth to prevent conflicts/401
-      delete config.auth;
-      if (config.headers["Authorization"]) {
-        delete config.headers["Authorization"];
+      delete reqConfig.auth;
+      if (reqConfig.headers["Authorization"]) {
+        delete reqConfig.headers["Authorization"];
       }
 
       // Switch to Public API endpoint if we were using Internal API
-      if (config.baseURL && config.baseURL.endsWith("/rest")) {
-        config.baseURL = config.baseURL.replace("/rest", "/api/v1");
+      if (reqConfig.baseURL && reqConfig.baseURL.endsWith("/rest")) {
+        reqConfig.baseURL = reqConfig.baseURL.replace("/rest", "/api/v1");
       }
     }
-    console.log(`[n8n API] Requesting: ${config.method.toUpperCase()} ${config.baseURL}${config.url}`);
+    console.log(`[n8n API] Requesting: ${reqConfig.method.toUpperCase()} ${reqConfig.baseURL}${reqConfig.url}`);
   } catch (err) {
     console.warn("Failed to inject API Key:", err.message);
   }
-  return config;
+  return reqConfig;
 });
 
 // Log API errors for easier debugging
@@ -101,7 +110,12 @@ module.exports = {
   // ─── Workflow Execution ─────────────────────────────
 
   async executeWorkflow(id) {
-    const res = await api.post(`/workflows/${id}/execute`);
+    // Public API v1 uses POST /workflows/:id/run
+    // Internal REST API uses POST /workflows/:id/execute
+    const endpoint = isApiKeyMode()
+      ? `/workflows/${id}/run`
+      : `/workflows/${id}/execute`;
+    const res = await api.post(endpoint);
     return res.data?.data || res.data;
   },
 
@@ -148,7 +162,28 @@ module.exports = {
   // ─── Settings / Version ─────────────────────────────
 
   async getSettings() {
-    const res = await api.get("/settings");
-    return res.data?.data || res.data;
+    // Public API v1 does not have a /settings endpoint.
+    // Fall back to Internal REST API for settings.
+    try {
+      const res = await api.get("/settings");
+      return res.data?.data || res.data;
+    } catch (err) {
+      // If using Public API and /settings fails, try the internal endpoint directly
+      if (isApiKeyMode()) {
+        try {
+          const fallbackRes = await axios.get(`${config.n8n.baseURL}/rest/settings`, {
+            auth: {
+              username: config.n8n.user,
+              password: config.n8n.pass
+            },
+            timeout: 10000
+          });
+          return fallbackRes.data?.data || fallbackRes.data;
+        } catch (fallbackErr) {
+          console.warn("[n8n API] Settings fallback also failed:", fallbackErr.message);
+        }
+      }
+      throw err;
+    }
   },
 };

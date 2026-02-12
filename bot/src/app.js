@@ -80,8 +80,8 @@ bot.action("sys_health", async (ctx) => {
     await ctx.answerCbQuery("Checking health...");
     const healthService = require("./services/healthService");
     try {
-        const health = await healthService.checkHealth();
-        const status = health.status === "ok" ? "✅ Operational" : "⚠️ Issues Detected";
+        const health = await healthService.checkNow();
+        const status = health.alive ? "✅ Operational" : "⚠️ Issues Detected";
         // Simple response, user can run /health for details
         await ctx.reply(`<b>System Status:</b> ${status}\nDatabase: ${health.dbConnection ? "Connected" : "Disconnected"}`, { parse_mode: "HTML" });
     } catch (err) {

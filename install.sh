@@ -251,6 +251,13 @@ if [ "${SKIP_ENV}" != "true" ]; then
 
   prompt_required ADMIN_ID "  → Admin ID (your Telegram user ID): " "Admin ID is required!"
 
+  echo ""
+  echo -e "  ${CYAN}${BOLD}n8n API Key (Optional)${NC}"
+  echo -e "  ${DIM}Required for full bot functionality. You can set it later via /setkey in the bot.${NC}"
+  echo -e "  ${DIM}Generate in n8n: Settings > Developer > API Keys${NC}"
+  echo ""
+  prompt N8N_API_KEY "  → API Key (or press Enter to skip): "
+
   # Auto-generate secure passwords and secrets
   POSTGRES_PASSWORD=$(openssl rand -hex 16)
   N8N_PASS=$(openssl rand -hex 12)
@@ -261,6 +268,8 @@ BOT_TOKEN=$BOT_TOKEN
 ADMIN_ID=$ADMIN_ID
 N8N_USER=admin
 N8N_PASS=$N8N_PASS
+N8N_API_KEY=${N8N_API_KEY:-}
+N8N_BASE_URL=http://n8n-main:5678
 POSTGRES_PASSWORD=$POSTGRES_PASSWORD
 N8N_VERSION=latest
 WEBHOOK_SECRET=$WEBHOOK_SECRET

@@ -182,6 +182,8 @@ async function checkNow() {
         alive: result.alive,
         responseTime: result.responseTime,
         state: currentState,
+        status: result.alive ? "ok" : "down",
+        dbConnection: result.alive, // If n8n responds, DB must be connected
         upSince,
         downSince,
     };
@@ -207,6 +209,7 @@ module.exports = {
     stopMonitoring,
     getStatus,
     checkNow,
+    checkHealth: checkNow, // Alias for backward compatibility
     ping,
     formatUptime,
 };

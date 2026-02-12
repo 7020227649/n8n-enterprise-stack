@@ -63,6 +63,8 @@ services:
       ADMIN_ID: ${ADMIN_ID}
       N8N_USER: ${N8N_USER}
       N8N_PASS: ${N8N_PASS}
+      N8N_BASE_URL: ${N8N_BASE_URL:-http://n8n-main:5678}
+      N8N_API_KEY: ${N8N_API_KEY:-}
       WEBHOOK_SECRET: ${WEBHOOK_SECRET:-}
     volumes:
       - bot_data:/data
