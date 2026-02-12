@@ -258,6 +258,10 @@ if [ "${SKIP_ENV}" != "true" ]; then
   echo ""
   prompt N8N_API_KEY "  → API Key (or press Enter to skip): "
 
+  # Detect public IP for default WEBHOOK_URL
+  SERVER_IP=$(curl -s --connect-timeout 5 ifconfig.me 2>/dev/null || curl -s --connect-timeout 5 icanhazip.com 2>/dev/null || hostname -I 2>/dev/null | awk '{print $1}' || echo '127.0.0.1')
+
+
   # Auto-generate secure passwords and secrets
   POSTGRES_PASSWORD=$(openssl rand -hex 16)
   N8N_PASS=$(openssl rand -hex 12)
@@ -273,6 +277,7 @@ N8N_BASE_URL=http://n8n-main:5678
 POSTGRES_PASSWORD=$POSTGRES_PASSWORD
 N8N_VERSION=latest
 WEBHOOK_SECRET=$WEBHOOK_SECRET
+WEBHOOK_URL=http://${SERVER_IP}:5678
 EOF
 
   chmod 600 .env
@@ -399,6 +404,14 @@ EOF
   certbot --nginx -d "$DOMAIN" --non-interactive --agree-tos -m "$SSL_EMAIL" --redirect 2>&1 | tail -3
 
   log "SSL certificate installed! 🔒"
+  
+  # Update WEBHOOK_URL to use the secure domain
+  if [ "$OS" = "darwin" ]; then
+    sed -i '' "s|WEBHOOK_URL=.*|WEBHOOK_URL=https://${DOMAIN}|" .env
+  else
+    sed -i "s|WEBHOOK_URL=.*|WEBHOOK_URL=https://${DOMAIN}|" .env
+  fi
+  
   DOMAIN_CONFIGURED=true
 else
   warn "Skipped. n8n will be accessible via IP address."
@@ -446,7 +459,7 @@ else
 fi
 
 # ─── Completion ──────────────────────────────────────
-SERVER_IP=$(curl -s --connect-timeout 5 ifconfig.me 2>/dev/null || curl -s --connect-timeout 5 icanhazip.com 2>/dev/null || hostname -I 2>/dev/null | awk '{print $1}' || echo 'your-server-ip')
+# IP detected earlier
 N8N_PASS_DISPLAY=${N8N_PASS:-$(grep N8N_PASS .env 2>/dev/null | cut -d'=' -f2)}
 
 echo ""
