@@ -5,7 +5,7 @@
 ![Node.js](https://img.shields.io/badge/Node.js-20-green)
 ![Docker](https://img.shields.io/badge/Docker-Compose-blue)
 ![License](https://img.shields.io/badge/License-MIT-yellow)
-![Commands](https://img.shields.io/badge/Commands-27-purple)
+![Commands](https://img.shields.io/badge/Commands-28-purple)
 
 ---
 
@@ -80,6 +80,17 @@ nano .env                  # Fill in your values
 docker compose up -d --build
 ```
 
+---
+
+### 🔄 Updating the Bot
+
+After pulling new changes or making updates, redeploy the bot:
+
+```bash
+cd /opt/n8n-enterprise-stack
+git pull origin main
+docker compose up -d --build bot
+```
 
 ---
 
@@ -124,6 +135,20 @@ sudo ./migrate.sh export
 | `/enable` | Activate a workflow |
 | `/disable` | Deactivate a workflow |
 | `/delete` | Delete with confirmation |
+
+### Workflow Tools
+| Command | Description |
+|---|---|
+| `/search <name>` | Search workflows by name |
+| `/clone` | Duplicate a workflow |
+| `/rename` | Rename a workflow |
+| `/export` | Download workflow as JSON |
+| `/import` | Upload .json or .zip to import workflows |
+| `/nodes` | View workflow node details |
+| `/schedule` | Show scheduled/cron workflows |
+| `/webhook_url` | Show webhook URLs |
+| `/stop` | Stop a running execution |
+| `/credentials` | List credential names |
 
 ### Backup & Restore
 | Command | Description |
