@@ -162,28 +162,44 @@ module.exports = {
   // ─── Settings / Version ─────────────────────────────
 
   async getSettings() {
-    // Public API v1 does not have a /settings endpoint.
-    // Fall back to Internal REST API for settings.
+    // The /settings endpoint only exists on the Internal REST API, NOT the
+    // Public API v1.  Always call the internal endpoint directly (bypassing
+    // the interceptor that rewrites the base URL in API‑key mode).
+
+    // Strategy 1: Internal REST API with Basic Auth (most reliable)
+    if (config.n8n.user && config.n8n.pass) {
+      try {
+        const res = await axios.get(`${config.n8n.baseURL}/rest/settings`, {
+          auth: { username: config.n8n.user, password: config.n8n.pass },
+          timeout: 10000,
+        });
+        return res.data?.data || res.data;
+      } catch (err) {
+        console.warn("[n8n API] Settings via Basic Auth failed:", err.message);
+      }
+    }
+
+    // Strategy 2: Internal REST API without auth (works if n8n has no
+    //             owner set up yet, or when accessed from localhost/Docker)
+    try {
+      const res = await axios.get(`${config.n8n.baseURL}/rest/settings`, {
+        timeout: 10000,
+      });
+      return res.data?.data || res.data;
+    } catch (err) {
+      console.warn("[n8n API] Settings without auth failed:", err.message);
+    }
+
+    // Strategy 3: Use the main api instance as a last resort (may fail in
+    //             API‑key mode, but worth a try if the above two failed)
     try {
       const res = await api.get("/settings");
       return res.data?.data || res.data;
     } catch (err) {
-      // If using Public API and /settings fails, try the internal endpoint directly
-      if (isApiKeyMode()) {
-        try {
-          const fallbackRes = await axios.get(`${config.n8n.baseURL}/rest/settings`, {
-            auth: {
-              username: config.n8n.user,
-              password: config.n8n.pass
-            },
-            timeout: 10000
-          });
-          return fallbackRes.data?.data || fallbackRes.data;
-        } catch (fallbackErr) {
-          console.warn("[n8n API] Settings fallback also failed:", fallbackErr.message);
-        }
-      }
-      throw err;
+      console.warn("[n8n API] Settings via api instance failed:", err.message);
     }
+
+    // Nothing worked — return a minimal object so callers don't crash
+    return {};
   },
 };

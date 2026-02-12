@@ -1,6 +1,7 @@
 
 const n8nApi = require("../services/n8nApi");
 const { escapeHtml, statusEmoji } = require("../utils/format");
+const { exec } = require("child_process");
 
 module.exports = (bot) => {
 
@@ -81,11 +82,56 @@ module.exports = (bot) => {
             let n8nVersion = "Unknown";
             let n8nEdition = "Unknown";
 
+            // Attempt 1: Get version from n8n REST API settings
             try {
                 const settings = await n8nApi.getSettings();
-                n8nVersion = settings.versionCli || settings.n8nVersion || "Unknown";
-                n8nEdition = settings.license?.planName || (settings.enterprise ? "Enterprise" : "Community");
+                if (settings.versionCli || settings.n8nVersion) {
+                    n8nVersion = settings.versionCli || settings.n8nVersion;
+                }
+                if (settings.license?.planName) {
+                    n8nEdition = settings.license.planName;
+                } else if (settings.enterprise) {
+                    n8nEdition = "Enterprise";
+                } else if (n8nVersion !== "Unknown") {
+                    n8nEdition = "Community";
+                }
             } catch { }
+
+            // Attempt 2: If API didn't return version, try Docker exec
+            if (n8nVersion === "Unknown") {
+                try {
+                    n8nVersion = await new Promise((resolve, reject) => {
+                        exec("docker exec n8n-main n8n --version 2>/dev/null || docker exec n8n n8n --version 2>/dev/null", {
+                            timeout: 10000
+                        }, (err, stdout) => {
+                            if (err) return reject(err);
+                            const ver = (stdout || "").trim();
+                            if (ver) resolve(ver);
+                            else reject(new Error("Empty output"));
+                        });
+                    });
+                    if (n8nEdition === "Unknown") n8nEdition = "Community";
+                } catch { }
+            }
+
+            // Attempt 3: Check Docker image tag as last resort
+            if (n8nVersion === "Unknown") {
+                try {
+                    n8nVersion = await new Promise((resolve, reject) => {
+                        exec("docker inspect --format='{{.Config.Image}}' n8n-main 2>/dev/null || docker inspect --format='{{.Config.Image}}' n8n 2>/dev/null", {
+                            timeout: 10000
+                        }, (err, stdout) => {
+                            if (err) return reject(err);
+                            const image = (stdout || "").trim().replace(/'/g, "");
+                            // Extract tag, e.g. "n8nio/n8n:1.70.2" → "1.70.2"
+                            const tag = image.split(":").pop();
+                            if (tag && tag !== image && tag !== "latest") resolve(tag);
+                            else reject(new Error("No useful tag"));
+                        });
+                    });
+                    if (n8nEdition === "Unknown") n8nEdition = "Community";
+                } catch { }
+            }
 
             const nodeVersion = process.version;
             const uptime = formatUptime(process.uptime() * 1000);
