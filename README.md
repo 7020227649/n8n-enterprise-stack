@@ -5,7 +5,7 @@
 ![Node.js](https://img.shields.io/badge/Node.js-20-green)
 ![Docker](https://img.shields.io/badge/Docker-Compose-blue)
 ![License](https://img.shields.io/badge/License-MIT-yellow)
-![Commands](https://img.shields.io/badge/Commands-28-purple)
+![Commands](https://img.shields.io/badge/Commands-53-purple)
 
 ---
 
@@ -14,12 +14,13 @@
 | Category | Commands | Description |
 |---|---|---|
 | 📋 **Workflow Control** | 6 | List, status, run, enable, disable, delete |
-| 💾 **Backup System** | 5 | Full/single backup, daily auto-backup |
-| ♻️ **Restore** | 4 | Upload, preview, confirm, restore history |
-| 📊 **Analytics** | 5 | Stats, global summary, top workflows, failures |
-| 🔔 **Smart Alerts** | 5 | Real-time failure alerts, per-workflow muting |
-| 🏥 **Health Monitor** | 1 | Proactive n8n uptime monitoring |
-| ⚙️ **System** | 1 | One-command n8n updates |
+| 🔧 **Workflow Tools** | 8 | Search, clone, export, import, nodes, schedule, stop, credentials |
+| 🔄 **Operations** | 8 | Active/inactive filter, bulk enable/disable, rename, webhook URLs, retry, execution details |
+| 💾 **Backup & Restore** | 9 | Full/single/system backup, daily auto-backup, workflow & system restore |
+| 📊 **Analytics & Dashboard** | 8 | Stats, summary, top workflows, failures, recent executions, version |
+| 🔔 **Alerts & Monitoring** | 6 | Real-time failure alerts, per-workflow muting, health checks |
+| 🔐 **Auth** | 2 | API key management, auth status |
+| ⚙️ **System** | 6 | Logs, disk, CPU/RAM, restart, update n8n, help |
 
 ### Enterprise Features
 - **Input Validation** — Never crashes on malformed API data
@@ -124,9 +125,16 @@ sudo ./migrate.sh export
 
 ---
 
-## 📱 All Commands
+## 📱 All Commands (53 Total)
 
-### Workflow Control
+### 🔐 Auth
+| Command | Description |
+|---|---|
+| `/start` | Start the bot and show welcome message |
+| `/setkey` | Set n8n API key for authentication |
+| `/auth_status` | Check current API key configuration |
+
+### 📋 Workflow Control
 | Command | Description |
 |---|---|
 | `/workflows` | List all workflows with status |
@@ -136,7 +144,7 @@ sudo ./migrate.sh export
 | `/disable` | Deactivate a workflow |
 | `/delete` | Delete with confirmation |
 
-### Workflow Tools
+### 🔧 Workflow Tools
 | Command | Description |
 |---|---|
 | `/search <name>` | Search workflows by name |
@@ -146,47 +154,67 @@ sudo ./migrate.sh export
 | `/import` | Upload .json or .zip to import workflows |
 | `/nodes` | View workflow node details |
 | `/schedule` | Show scheduled/cron workflows |
-| `/webhook_url` | Show webhook URLs |
+| `/webhook_url` | Show webhook trigger URLs |
 | `/stop` | Stop a running execution |
 | `/credentials` | List credential names |
 
-### Backup & Restore
+### 🔄 Operations
 | Command | Description |
 |---|---|
-| `/backup_all` | Full workflow-only backup (ZIP) |
-| `/backup_workflow` | Backup single workflow |
-| `/backup_system` | **Full System Backup** (App + DB + Config) |
-| `/restore_workflow` | Restore workflows from backup file |
-| `/restore_system` | **Full System Restore** from backup file(s) |
+| `/active` | List active workflows only |
+| `/inactive` | List inactive workflows only |
+| `/enable_all` | Bulk enable all workflows |
+| `/disable_all` | Bulk disable all workflows |
+| `/retry` | Retry a failed execution |
+| `/execution` | View execution details + errors |
+
+### 💾 Backup
+| Command | Description |
+|---|---|
+| `/backup_all` | Full backup of all workflows (ZIP) |
+| `/backup_workflow` | Backup a single workflow |
+| `/backup_system` | Full system backup (App + DB + Config) |
 | `/daily_backup_on` | Enable daily auto-backup (3 AM) |
 | `/daily_backup_off` | Disable daily auto-backup |
 | `/daily_backup_status` | Check daily backup status |
-| `/restore_workflow` | Upload & restore a backup file |
-| `/restore_status` | View restore history |
 
-### Analytics
+### ♻️ Restore
 | Command | Description |
 |---|---|
+| `/restore_workflow` | Upload & restore a workflow backup file |
+| `/restore_system` | Full system restore from backup file(s) |
+| `/restore_status` | View restore history |
+
+### 📊 Analytics & Dashboard
+| Command | Description |
+|---|---|
+| `/summary` | Full dashboard overview |
 | `/stats` | Single workflow statistics |
 | `/stats_all` | Global execution summary |
 | `/top` | Top workflows by run count |
 | `/failures` | Recent failed executions |
 | `/recent` | Last 10 executions |
+| `/version` | n8n + bot version info |
 
-### Alerts & Monitoring
+### 🔔 Alerts & Monitoring
 | Command | Description |
 |---|---|
 | `/alerts_on` | Enable failure notifications |
 | `/alerts_off` | Disable failure notifications |
-| `/alerts_status` | Current alert configuration |
+| `/alerts_status` | View alert configuration |
 | `/mute` | Silence alerts for a workflow |
 | `/unmute` | Re-enable alerts for a workflow |
-| `/health` | Check n8n uptime & response time |
+| `/health` | n8n health check + uptime + response time |
 
-### System
+### ⚙️ System
 | Command | Description |
 |---|---|
-| `/update_n8n` | Pull latest image & restart n8n |
+| `/system` | Server CPU, RAM, disk usage |
+| `/logs` | View last 25 n8n log lines |
+| `/disk` | Docker disk usage |
+| `/restart_n8n` | Quick restart (no update) |
+| `/update_n8n` | Pull latest image + restart n8n |
+| `/help` | Show interactive help menu |
 
 ---
 
@@ -215,9 +243,11 @@ cd bot && npm install && npm test
 ## 📁 Project Structure
 
 ```
-n8n-enterprise-stack-API/
+n8n-enterprise-stack/
 ├── docker-compose.yml          # Full stack orchestration
 ├── .env.example                # Environment template
+├── install.sh                  # One-command installer
+├── migrate.sh                  # Server migration tool
 ├── upgrade.sh                  # Manual upgrade script
 └── bot/
     ├── Dockerfile              # Bot container (Node 20 + Docker CLI)
@@ -227,7 +257,21 @@ n8n-enterprise-stack-API/
         ├── server.js           # Webhook server
         ├── config/index.js     # Centralized config
         ├── middleware/         # admin.js, rateLimit.js
-        ├── commands/           # 7 command modules (27 commands)
+        ├── commands/           # 12 command modules (53 commands)
+        │   ├── auth.js         # API key management
+        │   ├── workflows.js    # Workflow CRUD
+        │   ├── tools.js        # Search, clone, export, nodes, schedule
+        │   ├── import.js       # JSON/ZIP workflow import
+        │   ├── operations.js   # Bulk ops, rename, webhooks, retry
+        │   ├── backups.js      # Backup management
+        │   ├── restore.js      # Restore workflows & system
+        │   ├── analytics.js    # Stats & reporting
+        │   ├── alerts.js       # Failure alerting & muting
+        │   ├── health.js       # Health monitoring
+        │   ├── dashboard.js    # Summary & version
+        │   ├── system.js       # Logs, disk, restart
+        │   ├── update.js       # n8n update
+        │   └── help.js         # Interactive help menu
         ├── services/           # 6 service modules
         ├── utils/              # format, state, validators, pagination
         └── __tests__/          # 5 test suites (46 tests)
