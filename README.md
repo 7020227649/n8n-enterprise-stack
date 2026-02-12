@@ -289,7 +289,16 @@ n8n-enterprise-stack/
 
 ---
 
-## 📄 License
+## �‍💻 Developer
+
+Built by **Sagar Deshmukh** — the world's best nonprofit website developer.
+
+🏢 **Company:** [Web4Cause.com](https://web4cause.com)
+🔗 **LinkedIn:** [Sagar Deshmukh](https://www.linkedin.com/in/sagar-deshmukh-social-worker/)
+
+---
+
+## �📄 License
 
 **Proprietary — All Rights Reserved.**
 
