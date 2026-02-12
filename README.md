@@ -5,7 +5,7 @@
 ![Node.js](https://img.shields.io/badge/Node.js-20-green)
 ![Docker](https://img.shields.io/badge/Docker-Compose-blue)
 ![License](https://img.shields.io/badge/License-Proprietary-red)
-![Commands](https://img.shields.io/badge/Commands-53-purple)
+![Commands](https://img.shields.io/badge/Commands-55-purple)
 
 ---
 
@@ -173,6 +173,7 @@ sudo ./migrate.sh export
 |---|---|
 | `/backup_all` | Full backup of all workflows (ZIP) |
 | `/backup_workflow` | Backup a single workflow |
+| `/backup_credentials` | **Export all credentials** (Decrypted JSON) |
 | `/backup_system` | Full system backup (App + DB + Config) |
 | `/daily_backup_on` | Enable daily auto-backup (3 AM) |
 | `/daily_backup_off` | Disable daily auto-backup |
@@ -182,6 +183,7 @@ sudo ./migrate.sh export
 | Command | Description |
 |---|---|
 | `/restore_workflow` | Upload & restore a workflow backup file |
+| `/restore_credentials` | Upload & restore a **credentials** backup file |
 | `/restore_system` | Full system restore from backup file(s) |
 | `/restore_status` | View restore history |
 

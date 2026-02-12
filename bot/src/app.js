@@ -106,6 +106,7 @@ require("./commands/health")(bot);
 require("./commands/update")(bot);
 require("./commands/system")(bot);
 require("./commands/tools")(bot);
+require("./commands/credentials")(bot);
 require("./commands/import")(bot);
 require("./commands/operations")(bot);
 require("./commands/dashboard")(bot);
