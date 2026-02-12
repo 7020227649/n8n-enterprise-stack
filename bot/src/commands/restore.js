@@ -62,9 +62,9 @@ module.exports = (bot) => {
 
     // ─── File handler — catch uploaded documents ────────
 
-    bot.on("document", async (ctx) => {
+    bot.on("document", async (ctx, next) => {
         const session = pendingRestores.get(ctx.chat.id);
-        if (!session) return;
+        if (!session) return next();
 
         const doc = ctx.message.document;
         const filename = doc.file_name || "upload";

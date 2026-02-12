@@ -130,23 +130,16 @@ module.exports = (bot) => {
     });
 
     // ─── Document Handler — .json and .zip ───────────────
-    // Use bot.on with message type and check for document
 
-    bot.on("message", async (ctx, next) => {
-        // Only handle messages that contain a document
-        if (!ctx.message || !ctx.message.document) {
-            return next();
-        }
-
+    bot.on("document", async (ctx) => {
         const doc = ctx.message.document;
+        if (!doc) return;
+
         const fileName = (doc.file_name || "").toLowerCase();
         const isJson = fileName.endsWith(".json");
         const isZip = fileName.endsWith(".zip");
 
-        // Not a workflow file — pass to next handler
-        if (!isJson && !isZip) {
-            return next();
-        }
+        if (!isJson && !isZip) return;
 
         console.log(`[Import] Received file: ${doc.file_name} (${doc.file_size} bytes, mime: ${doc.mime_type})`);
 
