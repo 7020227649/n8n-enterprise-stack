@@ -28,7 +28,26 @@ function isApiKeyMode() {
 api.interceptors.request.use(reqConfig => {
   try {
     const state = require("../utils/state"); // Dynamic import
-    let apiKey = config.n8n.apiKey || state.get("n8nApiKey");
+    // 1. Try Env Var (Always plain text)
+    let apiKey = config.n8n.apiKey;
+
+    // 2. Try State (Might be encrypted)
+    if (!apiKey) {
+      const createHash = require("crypto").createHash;
+      const storedValue = state.get("n8nApiKey");
+
+      // state.get() attempts to decrypt, but let's double check
+      if (storedValue && storedValue.startsWith("enc:")) {
+        // If state.get() returned it starting with enc:, it failed to decrypt internaly
+        // or logic in state.js is bypassed. Let's try to decrypt manually.
+        const { decrypt } = require("../utils/security");
+        apiKey = decrypt(storedValue);
+      } else {
+        apiKey = storedValue;
+      }
+    }
+
+    // 3. Trim whatever we got
     if (apiKey) apiKey = apiKey.trim();
 
     if (apiKey) {

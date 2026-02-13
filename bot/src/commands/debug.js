@@ -8,11 +8,24 @@ module.exports = (bot) => {
         const lines = ["🕵️ <b>Debug Report</b>", ""];
 
         // 1. Auth Configuration
-        let apiKey = state.get("n8nApiKey") || config.n8n.apiKey;
+        let apiKey = config.n8n.apiKey; // Env first
+        let source = "Env";
+
+        if (!apiKey) {
+            const stored = state.get("n8nApiKey");
+            if (stored) {
+                apiKey = stored;
+                source = "State (DB)";
+                if (stored.startsWith("enc:")) {
+                    source = "State (Encrypted ⚠️)"; // Should have been decrypted by getter
+                }
+            }
+        }
+
         if (apiKey) apiKey = apiKey.trim();
 
         const basicUser = config.n8n.user;
-        const hasKey = !!(apiKey && apiKey.length > 0); // Check if apiKey is not empty after trim
+        const hasKey = !!(apiKey && apiKey.length > 0);
         const hasBasic = !!(basicUser && config.n8n.pass);
 
         lines.push(`<b>Auth Mode:</b> ${hasKey ? "API Key 🔑" : (hasBasic ? "Basic Auth 🔐" : "None ❌")}`);
@@ -21,8 +34,13 @@ module.exports = (bot) => {
             const mask = apiKey.length > 8
                 ? `${apiKey.substring(0, 4)}...${apiKey.substring(apiKey.length - 4)}`
                 : "***";
+            lines.push(`Key Source: ${source}`);
             lines.push(`Key (Masked): <code>${mask}</code>`);
             lines.push(`Key Length: ${apiKey.length} chars`);
+
+            if (apiKey.length > 60) {
+                lines.push("⚠️ <b>Warning:</b> Key includes possible JWT or encryption artifacts (too long).");
+            }
         }
 
         // 2. Connectivity Check
