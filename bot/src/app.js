@@ -31,28 +31,42 @@ bot.use(rateLimit);
 
 // ─── Start Command ──────────────────────────────────
 bot.start((ctx) => {
-    ctx.reply(
-        [
-            "🚀 <b>Welcome to n8n Enterprise Control!</b>",
-            "",
-            "Your robust automation infrastructure is ready.",
-            "I am your personal assistant for managing this server.",
-            "",
-            "<b>🏁 First Go Guide:</b>",
-            "1️⃣ <b>Login:</b> Open your domain/IP in browser.",
-            "2️⃣ <b>Build:</b> Create your first workflow.",
-            "3️⃣ <b>Secure:</b> Run /daily_backup_on to auto-protect data.",
-            "",
-            "<b>👇 What would you like to do?</b>"
-        ].join("\n"),
-        {
-            parse_mode: "HTML",
-            ...Markup.inlineKeyboard([
-                [Markup.button.callback("🛠 My Workflows", "op_list_workflows"), Markup.button.callback("🛡 System Status", "sys_health")],
-                [Markup.button.callback("📖 Command Menu", "help_menu"), Markup.button.callback("📦 Backup Now", "quick_backup")]
-            ])
-        }
-    );
+    // Check if API Key is configured
+    const state = require("./utils/state");
+    const hasApiKey = config.n8n.apiKey || state.get("n8nApiKey");
+
+    const welcomeMsg = [
+        "🚀 <b>Welcome to n8n Enterprise Control!</b>",
+        "",
+        "Your robust automation infrastructure is ready.",
+        "I am your personal assistant for managing this server.",
+        "",
+        "<b>🏁 First Go Guide:</b>",
+        "1️⃣ <b>Login:</b> Open your domain/IP in browser.",
+        "2️⃣ <b>Build:</b> Create your first workflow.",
+        "3️⃣ <b>Secure:</b> Run /daily_backup_on to auto-protect data.",
+    ];
+
+    const keyboard = [
+        [Markup.button.callback("🛠 My Workflows", "op_list_workflows"), Markup.button.callback("🛡 System Status", "sys_health")],
+        [Markup.button.callback("📖 Command Menu", "help_menu"), Markup.button.callback("📦 Backup Now", "quick_backup")]
+    ];
+
+    if (!hasApiKey) {
+        welcomeMsg.push("");
+        welcomeMsg.push("⚠️ <b>Action Required:</b> n8n API Key not configured.");
+        welcomeMsg.push("Run <code>/setkey &lt;your_key&gt;</code> to enable full functionality.");
+        // Add a highlight button for setup
+        keyboard.unshift([Markup.button.callback("🔑 Setup API Key", "help_auth_setup")]);
+    }
+
+    welcomeMsg.push("");
+    welcomeMsg.push("<b>👇 What would you like to do?</b>");
+
+    ctx.reply(welcomeMsg.join("\n"), {
+        parse_mode: "HTML",
+        ...Markup.inlineKeyboard(keyboard)
+    });
 });
 
 // Action handlers for these buttons need to be routed or existing commands used.
@@ -73,6 +87,13 @@ bot.start((ctx) => {
 // ─── Action Handlers ─────────────────────────────────
 
 bot.action("help_menu", (ctx) => ctx.reply("📖 Access the full command list by sending /help"));
+
+bot.action("help_auth_setup", (ctx) => {
+    ctx.reply(
+        "🔑 <b>API Key Setup</b>\n\n1. Go to your n8n dashboard (Settings > Developer > API Keys).\n2. Create a new API Key.\n3. Copy it and send it here like this:\n\n<code>/setkey <your_api_key></code>",
+        { parse_mode: "HTML" }
+    );
+});
 
 bot.action("op_list_workflows", require("./commands/workflows").listWorkflows);
 

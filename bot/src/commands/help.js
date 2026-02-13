@@ -143,6 +143,10 @@ module.exports = (bot) => {
                 `/restart_n8n — Quick restart (no update)`,
                 `/update_n8n — Pull latest image + restart`,
                 `/version — n8n + bot version info`,
+                ``,
+                `🔑 <b>Authentication</b>`,
+                `/setkey &lt;key&gt; — Set n8n API Key`,
+                `/auth_status — Check API Key status`,
             ].join("\n"),
             { parse_mode: "HTML", ...Markup.inlineKeyboard([[Markup.button.callback("◀️ Back", "help_back")]]) }
         );

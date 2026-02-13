@@ -23,7 +23,7 @@ module.exports = (bot) => {
 
         try {
             state.set("n8nApiKey", key);
-            await ctx.reply("✅ <b>API Key Saved!</b>\n\nThe bot will now use this key for all requests. Try running /workflows to verify.", { parse_mode: "HTML" });
+            await ctx.reply("✅ <b>API Key Saved!</b>\n\nThe bot is now fully connected to n8n.\n\nRun /system to check the connection status, or /workflows to start managing your workflows.", { parse_mode: "HTML" });
         } catch (err) {
             console.error(err);
             await ctx.reply("❌ Failed to save API Key.");
