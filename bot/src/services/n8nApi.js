@@ -28,7 +28,8 @@ function isApiKeyMode() {
 api.interceptors.request.use(reqConfig => {
   try {
     const state = require("../utils/state"); // Dynamic import
-    const apiKey = config.n8n.apiKey || state.get("n8nApiKey");
+    let apiKey = config.n8n.apiKey || state.get("n8nApiKey");
+    if (apiKey) apiKey = apiKey.trim();
 
     if (apiKey) {
       // ─── Mode 1: API Key (Public API) ───
