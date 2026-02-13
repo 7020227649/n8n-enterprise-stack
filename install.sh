@@ -480,11 +480,14 @@ wait_for_n8n() {
   info "Checking n8n connectivity..."
   
   for ((i=1; i<=retries; i++)); do
-    if curl -s --head --request GET "$url" | grep "200 OK" > /dev/null; then
-      log "n8n is up and running!"
+    # Check if we get ANY response from n8n (status 200, 302, 401 are all good signs it's running)
+    status_code=$(curl -s -o /dev/null -w "%{http_code}" "$url")
+    
+    if [[ "$status_code" =~ ^(2|3|4) ]]; then
+      log "n8n is up and running! (Status: $status_code)"
       return 0
     fi
-    echo -ne "  ${DIM}Waiting for n8n... ($i/$retries)${NC}\r"
+    echo -ne "  ${DIM}Waiting for n8n... ($i/$retries) [Status: $status_code]${NC}\r"
     sleep $wait_time
   done
   
