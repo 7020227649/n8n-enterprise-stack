@@ -132,6 +132,7 @@ require("./commands/import")(bot);
 require("./commands/operations")(bot);
 require("./commands/dashboard")(bot);
 require("./commands/help")(bot);
+require("./commands/debug")(bot);
 
 // ─── Initialize Server (failure webhook + alerts) ────
 require("./server")(bot);
