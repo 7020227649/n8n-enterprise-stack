@@ -1,6 +1,6 @@
-
 const fs = require("fs");
 const config = require("../config");
+const { encrypt, decrypt } = require("./security");
 
 const STATE_PATH = config.paths.state;
 
@@ -45,12 +45,26 @@ function save(state) {
 
 function get(key) {
     const state = load();
-    return key ? state[key] : state;
+    let value = key ? state[key] : state;
+
+    // Decrypt API Key if requested
+    if (key === "n8nApiKey" && value) {
+        return decrypt(value);
+    }
+
+    return value;
 }
 
 function set(key, value) {
     const state = load();
-    state[key] = value;
+
+    // Encrypt API Key before saving
+    if (key === "n8nApiKey" && value) {
+        state[key] = encrypt(value);
+    } else {
+        state[key] = value;
+    }
+
     save(state);
     return state;
 }
