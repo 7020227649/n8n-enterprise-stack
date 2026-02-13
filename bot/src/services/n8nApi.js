@@ -6,10 +6,6 @@ const { validateWorkflow, validateWorkflows, validateExecutions } = require("../
 
 const api = axios.create({
   baseURL: `${config.n8n.baseURL}/rest`,
-  auth: {
-    username: config.n8n.user,
-    password: config.n8n.pass
-  },
   timeout: 30000
 });
 
@@ -28,29 +24,32 @@ function isApiKeyMode() {
   return !!apiKey;
 }
 
-// Request Interceptor: Inject API Key if available
+// Request Interceptor: Inject Credentials (API Key OR Basic Auth)
 api.interceptors.request.use(reqConfig => {
   try {
     const state = require("../utils/state"); // Dynamic import
     const apiKey = config.n8n.apiKey || state.get("n8nApiKey");
 
     if (apiKey) {
+      // ─── Mode 1: API Key (Public API) ───
       reqConfig.headers["X-N8N-API-KEY"] = apiKey;
-
-      // Remove Basic Auth to prevent conflicts/401
-      delete reqConfig.auth;
-      if (reqConfig.headers["Authorization"]) {
-        delete reqConfig.headers["Authorization"];
-      }
 
       // Switch to Public API endpoint if we were using Internal API
       if (reqConfig.baseURL && reqConfig.baseURL.endsWith("/rest")) {
         reqConfig.baseURL = reqConfig.baseURL.replace("/rest", "/api/v1");
       }
+    } else if (config.n8n.user && config.n8n.pass) {
+      // ─── Mode 2: Basic Auth (Internal API) ───
+      // Only apply if no API Key is present
+      reqConfig.auth = {
+        username: config.n8n.user,
+        password: config.n8n.pass
+      };
     }
+
     console.log(`[n8n API] Requesting: ${reqConfig.method.toUpperCase()} ${reqConfig.baseURL}${reqConfig.url}`);
   } catch (err) {
-    console.warn("Failed to inject API Key:", err.message);
+    console.warn("Failed to inject credentials:", err.message);
   }
   return reqConfig;
 });

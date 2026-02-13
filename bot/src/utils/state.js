@@ -60,7 +60,7 @@ function set(key, value) {
 
     // Encrypt API Key before saving
     if (key === "n8nApiKey" && value) {
-        state[key] = encrypt(value);
+        state[key] = encrypt(value.trim());
     } else {
         state[key] = value;
     }
