@@ -21,7 +21,8 @@ if [ "$LEN" -gt 50 ]; then
   echo ""
   echo "   👉 Please go to n8n (Settings > Developer > API Keys) and copy a fresh key."
   echo ""
-  read -p "   Paste the REAL API Key here: " NEW_KEY
+  # Read from /dev/tty because script is likely piped from curl
+  read -p "   Paste the REAL API Key here: " NEW_KEY < /dev/tty
 
   # Trim whitespace
   NEW_KEY=$(echo "$NEW_KEY" | xargs)
