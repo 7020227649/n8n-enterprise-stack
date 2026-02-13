@@ -469,6 +469,71 @@ echo ""
 info "Waiting for services to start..."
 sleep 10
 
+# ─── Diagnostics & Self-Healing ──────────────────────
+step "Diagnostics"
+
+wait_for_n8n() {
+  local retries=30
+  local wait_time=2
+  local url="http://127.0.0.1:5678"
+  
+  info "Checking n8n connectivity..."
+  
+  for ((i=1; i<=retries; i++)); do
+    if curl -s --head --request GET "$url" | grep "200 OK" > /dev/null; then
+      log "n8n is up and running!"
+      return 0
+    fi
+    echo -ne "  ${DIM}Waiting for n8n... ($i/$retries)${NC}\r"
+    sleep $wait_time
+  done
+  
+  echo ""
+  err "n8n failed to start within 60 seconds."
+  return 1
+}
+
+if ! wait_for_n8n; then
+  echo ""
+  warn "n8n is not responding. Checking logs for common errors..."
+  echo ""
+  
+  # Check for password mismatch
+  if docker compose logs n8n-main | grep -q "password authentication failed"; then
+    echo -e "  ${RED}${BOLD}✖  CRITICAL ERROR: Database Password Mismatch${NC}"
+    echo -e "  The database password in .env does not match the existing database volume."
+    echo ""
+    echo -e "  ${YELLOW}Auto-Fix Attempt:${NC}"
+    echo -e "  We can wipe the database volume to allow it to be recreated with the correct password."
+    echo -e "  ${BOLD}THIS WILL DELETE ALL N8N DATA.${NC}"
+    echo ""
+    prompt FIX_DB "  → Wipe Database and Restart? (Y/n): "
+    
+    if [ "$FIX_DB" != "n" ] && [ "$FIX_DB" != "N" ]; then
+      info "Stopping containers..."
+      docker compose down >/dev/null 2>&1
+      info "Removing corrupted volume..."
+      docker volume rm n8n-enterprise-stack_postgres_data >/dev/null 2>&1
+      info "Restarting..."
+      docker compose up -d --build
+      
+      # Wait again
+      if wait_for_n8n; then
+        log "Fix successful! n8n is running."
+      else
+        err "Fix failed. Please check logs manually: docker compose logs"
+      fi
+    else
+      warn "Aborting. You will need to fix the .env file manually."
+    fi
+  else
+    echo -e "  ${YELLOW}Last 20 lines of logs:${NC}"
+    docker compose logs --tail=20 n8n-main
+    echo ""
+    warn "Please check the logs above for errors."
+  fi
+fi
+
 # Check if containers are running
 RUNNING=$(docker compose ps --format "{{.State}}" 2>/dev/null | grep -c "running" || echo "0")
 TOTAL=$(docker compose ps --format "{{.State}}" 2>/dev/null | wc -l || echo "0")
