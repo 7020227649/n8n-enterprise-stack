@@ -246,9 +246,23 @@ if [ -f .env ]; then
   echo ""
   prompt KEEP_ENV "  → Keep existing config? (Y/n): "
   
-  if [ "$KEEP_ENV" != "n" ] && [ "$KEEP_ENV" != "N" ]; then
+  if [ "$KEEP_ENV" != "n" ] && [ "$KEEP_ENV" != "n" ]; then
     log "Keeping existing configuration."
     SKIP_ENV=true
+    
+    # ─── New: Sanitize existing configuration ───
+    # Many users have a corrupted 267-char key. Let's fix it silently or with a warning.
+    EXISTING_KEY=$(grep "N8N_API_KEY=" .env | cut -d'=' -f2- | tr -d '\r')
+    if [ ${#EXISTING_KEY} -gt 60 ]; then
+       echo ""
+       warn "CORRUPTION DETECTED: Your existing API key is too long (${#EXISTING_KEY} chars)."
+       info "This usually means it contains an encrypted blob instead of a plain key."
+       prompt CLEAR_BAD_KEY "  → Clear this corrupted key and use Basic Auth? (Y/n): "
+       if [ "$CLEAR_BAD_KEY" != "n" ] && [ "$CLEAR_BAD_KEY" != "N" ]; then
+          sed -i "s|^N8N_API_KEY=.*|N8N_API_KEY=|" .env
+          log "Corrupted key cleared. Bot will now use Basic Auth fallback."
+       fi
+    fi
   fi
 fi
 
