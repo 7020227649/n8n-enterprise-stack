@@ -492,7 +492,7 @@ wait_for_n8n() {
   done
   
   echo ""
-  err "n8n failed to start within 60 seconds."
+  warn "n8n failed to start within 60 seconds."
   return 1
 }
 
