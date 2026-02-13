@@ -89,6 +89,45 @@ api.interceptors.response.use(
   }
 );
 
+// Response Interceptor: 401 Retry Logic
+api.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    const originalRequest = error.config;
+
+    // If we get a 401 and haven't retried yet
+    if (error.response && error.response.status === 401 && !originalRequest._retry) {
+      console.warn("[n8n API] 401 Unauthorized received. Trying fallback to Basic Auth...");
+      originalRequest._retry = true;
+
+      const config = require("../config");
+
+      // If we have Basic Auth creds, try them
+      if (config.n8n.user && config.n8n.pass) {
+        // Remove the failing API key
+        delete originalRequest.headers["X-N8N-API-KEY"];
+
+        // Add Basic Auth
+        originalRequest.auth = {
+          username: config.n8n.user,
+          password: config.n8n.pass
+        };
+
+        // Fix URL: If we were hitting Public API (/api/v1), switch to Internal API (/rest)
+        // Basic Auth usually only works on /rest endpoints in some n8n versions, 
+        // or is safer to use there.
+        if (originalRequest.baseURL && originalRequest.baseURL.includes("/api/v1")) {
+          originalRequest.baseURL = originalRequest.baseURL.replace("/api/v1", "/rest");
+        }
+
+        console.log(`[n8n API] Retrying with Basic Auth: ${originalRequest.baseURL}${originalRequest.url}`);
+        return api(originalRequest);
+      }
+    }
+    return Promise.reject(error);
+  }
+);
+
 module.exports = {
 
   // ─── Workflow CRUD ──────────────────────────────────
