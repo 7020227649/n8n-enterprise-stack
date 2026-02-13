@@ -91,6 +91,26 @@ module.exports = (bot) => {
             }
         }
 
+        // 4. Deep Auth Debug (New)
+        lines.push("");
+        lines.push("<b>Deep Auth Probe:</b>");
+
+        // We can't easily run the external script from here without exec, 
+        // but we can inline the logic or use a helper. 
+        // For now, let's just do a direct Basic Auth test here as a second opinion.
+        if (config.n8n.user && config.n8n.pass) {
+            try {
+                await axios.get(`${baseURL}/rest/workflows`, {
+                    auth: { username: config.n8n.user, password: config.n8n.pass },
+                    timeout: 3000,
+                    validateStatus: () => true
+                });
+                lines.push("Basic Auth: ✅ Working (Direct Check)");
+            } catch (e) {
+                lines.push(`Basic Auth: ❌ Failed (${e.message})`);
+            }
+        }
+
         await ctx.reply(lines.join("\n"), { parse_mode: "HTML" });
     });
 };
