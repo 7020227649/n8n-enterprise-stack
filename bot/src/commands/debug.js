@@ -39,9 +39,16 @@ module.exports = (bot) => {
             lines.push(`Key Length: ${apiKey.length} chars`);
 
             if (apiKey.length > 60) {
-                lines.push("⚠️ <b>Warning:</b> Key includes possible JWT or encryption artifacts (too long).");
+                lines.push("⚠️ <b>Warning:</b> Key is too long (Corrupt).");
+                lines.push("👉 Bot will ignore this key and try Basic Auth.");
+
+                // Simulate what n8nApi check does
+                hasKey = false;
+                hasBasic = !!(basicUser && config.n8n.pass); // Re-evaluate fallback
             }
         }
+
+        lines.push(`<b>Effective Auth:</b> ${hasKey ? "API Key 🔑" : (hasBasic ? "Basic Auth 🔐" : "None ❌")}`);
 
         // 2. Connectivity Check
         const baseURL = config.n8n.baseURL;

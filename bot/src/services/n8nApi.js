@@ -50,6 +50,12 @@ api.interceptors.request.use(reqConfig => {
     // 3. Trim whatever we got
     if (apiKey) apiKey = apiKey.trim();
 
+    // 4. Validate Key Length (Fix for corrupted/encrypted keys)
+    if (apiKey && apiKey.length > 60) {
+      console.warn(`[n8n API] Detected invalid API Key length (${apiKey.length} chars). Ignoring it to use Basic Auth fallback.`);
+      apiKey = null;
+    }
+
     if (apiKey) {
       // ─── Mode 1: API Key (Public API) ───
       reqConfig.headers["X-N8N-API-KEY"] = apiKey;
