@@ -131,8 +131,10 @@ sudo ./migrate.sh export
 | Command | Description |
 |---|---|
 | `/start` | Start the bot and show welcome message |
-| `/setkey` | Set n8n API key for authentication |
+| `/setkey` | **Set n8n API key** (Encrypted & Secure) |
 | `/auth_status` | Check current API key configuration |
+
+> **Note:** You can generate an API Key in n8n under **Settings > Developer**. Send it to the bot using `/setkey <key>` to enable full functionality. The key is encrypted before storage.
 
 ### 📋 Workflow Control
 | Command | Description |
