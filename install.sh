@@ -226,6 +226,18 @@ fi
 # ─── Configure Environment ───────────────────────────
 step "Step 5/7: Configuration"
 
+# Check for existing PostgreSQL volume (prevents 502 Bad Gateway on reinstall)
+# Check for existing PostgreSQL volume (prevents 502 Bad Gateway on reinstall)
+if docker volume inspect n8n-enterprise-stack_postgres_data >/dev/null 2>&1; then
+  if [ ! -f .env ]; then
+    echo ""
+    warn "Existing database found but no configuration (.env)."
+    info "Removing orphaned database volume to ensure a clean text install..."
+    docker volume rm n8n-enterprise-stack_postgres_data >/dev/null 2>&1 || true
+    log "Orphaned database removed."
+  fi
+fi
+
 # Detect public IP (needed for both new and existing configs)
 SERVER_IP=$(curl -s --connect-timeout 5 ifconfig.me 2>/dev/null || curl -s --connect-timeout 5 icanhazip.com 2>/dev/null || hostname -I 2>/dev/null | awk '{print $1}' || echo '127.0.0.1')
 
@@ -262,8 +274,10 @@ if [ "${SKIP_ENV}" != "true" ]; then
   prompt N8N_API_KEY "  → API Key (or press Enter to skip): "
 
   # Auto-generate secure passwords and secrets
-  POSTGRES_PASSWORD=$(openssl rand -hex 16)
-  N8N_PASS=$(openssl rand -hex 12)
+  # Use deterministic password generation based on BOT_TOKEN
+  # This allows recovering the DB password if .env is lost but BOT_TOKEN is known
+  POSTGRES_PASSWORD=$(echo "db_pwd_${BOT_TOKEN}" | openssl dgst -sha256 | awk '{print $2}' | cut -c1-24)
+  N8N_PASS=$(echo "n8n_pass_${BOT_TOKEN}" | openssl dgst -sha256 | awk '{print $2}' | cut -c1-16)
   WEBHOOK_SECRET=$(openssl rand -hex 32)
 
   cat > .env <<EOF
