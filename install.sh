@@ -291,15 +291,40 @@ if [ "${SKIP_ENV}" != "true" ]; then
   # Use deterministic password generation based on BOT_TOKEN
   # This allows recovering the DB password if .env is lost but BOT_TOKEN is known
   POSTGRES_PASSWORD=$(echo "db_pwd_${BOT_TOKEN}" | openssl dgst -sha256 | awk '{print $2}' | cut -c1-24)
-  N8N_PASS=$(echo "n8n_pass_${BOT_TOKEN}" | openssl dgst -sha256 | awk '{print $2}' | cut -c1-16)
+  # ─── n8n Credentials ──────────────────────────────────
+  echo ""
+  echo -e "  ${CYAN}${BOLD}n8n Login Credentials${NC}"
+  echo -e "  ${DIM}These will be used to create your n8n owner account and for the bot to connect.${NC}"
+  echo ""
+  
+  prompt_required N8N_USER "  → Email (e.g. admin@example.com): " "Email is required!"
+  
+  while true; do
+    echo -n "  → Password: "
+    read -s N8N_PASS < /dev/tty
+    echo ""
+    echo -n "  → Confirm Password: "
+    read -s N8N_PASS_CONFIRM < /dev/tty
+    echo ""
+    
+    if [ "$N8N_PASS" = "$N8N_PASS_CONFIRM" ] && [ -n "$N8N_PASS" ]; then
+      break
+    else
+      echo -e "  ${RED}Passwords do not match or are empty. Try again.${NC}"
+    fi
+  done
+  
+  # Auto-generate secure secrets
+  POSTGRES_PASSWORD=$(echo "db_pwd_${BOT_TOKEN}" | openssl dgst -sha256 | awk '{print $2}' | cut -c1-24)
   WEBHOOK_SECRET=$(openssl rand -hex 32)
+  N8N_API_KEY=${N8N_API_KEY:-}
 
   cat > .env <<EOF
 BOT_TOKEN=$BOT_TOKEN
 ADMIN_ID=$ADMIN_ID
-N8N_USER=admin
+N8N_USER=$N8N_USER
 N8N_PASS=$N8N_PASS
-N8N_API_KEY=${N8N_API_KEY:-}
+N8N_API_KEY=$N8N_API_KEY
 N8N_BASE_URL=http://n8n-main:5678
 POSTGRES_PASSWORD=$POSTGRES_PASSWORD
 N8N_VERSION=latest
@@ -579,7 +604,7 @@ else
   echo -e "  ${BOLD}🌐 Web Interface:${NC}   ${GREEN}http://${SERVER_IP}:5678${NC}"
 fi
 
-echo -e "  ${BOLD}👤 Admin Login:${NC}     Username: ${CYAN}admin${NC} / Password: ${CYAN}${N8N_PASS_DISPLAY}${NC}"
+echo -e "  ${BOLD}👤 Admin Login:${NC}     Username: ${CYAN}${N8N_USER:-admin}${NC} / Password: ${CYAN}${N8N_PASS_DISPLAY}${NC}"
 echo ""
 echo -e "  ${BOLD}🤖 Telegram Bot:${NC}    Search for your bot and click ${CYAN}START${NC}"
 echo ""
