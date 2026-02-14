@@ -32,7 +32,7 @@ async function getSessionCookie(forceRefresh = false) {
     try {
       console.log("[n8n API] Authenticating via Session...");
       const loginRes = await axios.post(`${config.n8n.baseURL}/rest/login`, {
-        email: config.n8n.user,
+        emailOrLdapLoginId: config.n8n.user,
         password: config.n8n.pass,
       }, { timeout: 10000 });
 

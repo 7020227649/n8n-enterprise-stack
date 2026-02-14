@@ -80,7 +80,7 @@ async function test(name, headers, auth) {
         console.log("\n👉 Testing: Session Auth (Internal API)");
         try {
             const loginRes = await axios.post(`${BASE_URL}/rest/login`, {
-                email: N8N_USER,
+                emailOrLdapLoginId: N8N_USER,
                 password: N8N_PASS,
             }, { timeout: 5000 });
 
