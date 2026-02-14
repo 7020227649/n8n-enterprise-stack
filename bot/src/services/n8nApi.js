@@ -71,6 +71,9 @@ function isApiKeyMode() {
 
 // Request Interceptor: Inject Credentials (API Key OR Session Cookie)
 api.interceptors.request.use(async reqConfig => {
+  // If this is a retry (handled by response interceptor), skip logic to prevent overriding fallback
+  if (reqConfig._retry) return reqConfig;
+
   try {
     const state = require("../utils/state"); // Dynamic import
     // 1. Try Env Var (Always plain text)
