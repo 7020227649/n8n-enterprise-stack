@@ -37,6 +37,8 @@ services:
       - "127.0.0.1:5678:5678"
     volumes:
       - n8n_data:/home/node/.n8n
+    security_opt:
+      - no-new-privileges:true
 
   n8n-worker:
     image: n8nio/n8n:${N8N_VERSION}
@@ -56,6 +58,8 @@ services:
       WEBHOOK_URL: ${WEBHOOK_URL}
     volumes:
       - n8n_data:/home/node/.n8n
+    security_opt:
+      - no-new-privileges:true
 
   bot:
     build: ./bot

@@ -22,17 +22,16 @@ module.exports = (bot) => {
             await ctx.reply("📜 Fetching n8n logs...");
 
             let logs = "";
-            const containerNames = [
-                "n8n-enterprise-stack-n8n-main-1",
-                "n8n-enterprise-stack-api-n8n-main-1",
-                "n8n-main",
-            ];
+            try {
+                // Find n8n container dynamically using image name
+                const cmd = `docker ps --filter "ancestor=n8nio/n8n" --format "{{.ID}}" | head -n 1`;
+                const containerId = await run(cmd, 5000);
 
-            for (const name of containerNames) {
-                try {
-                    logs = await run(`docker logs ${name} --tail 25 2>&1`, 10000);
-                    if (logs) break;
-                } catch { }
+                if (containerId) {
+                    logs = await run(`docker logs ${containerId} --tail 25 2>&1`, 10000);
+                }
+            } catch (err) {
+                console.warn("Failed to find n8n container:", err.message);
             }
 
             if (!logs) {
@@ -147,18 +146,22 @@ module.exports = (bot) => {
             await ctx.answerCbQuery("Restarting...");
             await ctx.editMessageText("⏳ Restarting n8n containers...");
 
-            const restartCmds = [
-                "docker restart n8n-enterprise-stack-n8n-main-1 n8n-enterprise-stack-n8n-worker-1 2>/dev/null",
-                "docker restart n8n-enterprise-stack-api-n8n-main-1 n8n-enterprise-stack-api-n8n-worker-1 2>/dev/null",
-                "docker restart n8n-main n8n-worker 2>/dev/null",
-            ];
-
-            for (const cmd of restartCmds) {
-                try {
-                    await run(cmd, 60000);
-                    break;
-                } catch { }
+            // Find all n8n containers (main and worker)
+            const findCmd = `docker ps --filter "ancestor=n8nio/n8n" --format "{{.ID}}"`;
+            let containerIds = "";
+            try {
+                containerIds = await run(findCmd, 5000);
+            } catch (e) {
+                return ctx.reply("❌ Could not find any n8n containers to restart.");
             }
+
+            if (!containerIds.trim()) {
+                return ctx.reply("❌ No active n8n containers found.");
+            }
+
+            // Restart them
+            const ids = containerIds.split("\n").join(" ");
+            await run(`docker restart ${ids}`, 60000);
 
             await ctx.reply(
                 `✅ <b>n8n Restarted</b>\n└ Containers should be back online in ~15s.`,
