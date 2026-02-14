@@ -75,7 +75,44 @@ async function test(name, headers, auth) {
         console.log("   ℹ️  Skipped: User/Pass not set");
     }
 
-    // 4. Test Public API Endpoint (v1) with Env Key
+    // 4. Test Session Auth (New)
+    if (N8N_USER && N8N_PASS) {
+        console.log("\n👉 Testing: Session Auth (Internal API)");
+        try {
+            const loginRes = await axios.post(`${BASE_URL}/rest/login`, {
+                email: N8N_USER,
+                password: N8N_PASS,
+            }, { timeout: 5000 });
+
+            const cookies = loginRes.headers["set-cookie"];
+            if (cookies) {
+                const cookieStr = cookies.map(c => c.split(";")[0]).join("; ");
+                console.log("   🔑 Login Successful. Got Cookie.");
+
+                const res = await axios.get(`${BASE_URL}/rest/workflows`, {
+                    headers: { Cookie: cookieStr },
+                    timeout: 5000,
+                    validateStatus: () => true
+                });
+
+                if (res.status === 200) console.log(`   ✅ SUCCESS! (Status: 200)`);
+                else console.log(`   ❌ Failed (Status: ${res.status})`);
+
+            } else {
+                console.log("   ❌ Login Failed: No cookies received.");
+            }
+        } catch (err) {
+            console.log(`   ❌ Login Failed: ${err.message}`);
+            if (err.response && err.response.data) {
+                console.log(`      Error Data: ${JSON.stringify(err.response.data)}`);
+            }
+        }
+    } else {
+        console.log("\n👉 Testing: Session Auth");
+        console.log("   ℹ️  Skipped: User/Pass not set");
+    }
+
+    // 5. Test Public API Endpoint (v1) with Env Key
     if (N8N_API_KEY && N8N_API_KEY.length < 60) {
         try {
             console.log(`\n👉 Testing: Public API v1 (GET /api/v1/workflows)`);

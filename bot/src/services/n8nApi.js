@@ -14,8 +14,48 @@ axiosRetry(api, {
   retryDelay: axiosRetry.exponentialDelay
 });
 
+// Store session cookie in memory
+let sessionCookie = null;
+let sessionPromise = null;
+
 /**
- * Detect whether we are using API Key auth (Public API) or Basic Auth (Internal).
+ * Perform login to n8n and get a session cookie.
+ * Handles race conditions using a promise.
+ */
+async function getSessionCookie(forceRefresh = false) {
+  if (sessionCookie && !forceRefresh) return sessionCookie;
+
+  // If a login is already in progress, return that promise
+  if (sessionPromise) return sessionPromise;
+
+  sessionPromise = (async () => {
+    try {
+      console.log("[n8n API] Authenticating via Session...");
+      const loginRes = await axios.post(`${config.n8n.baseURL}/rest/login`, {
+        email: config.n8n.user,
+        password: config.n8n.pass,
+      }, { timeout: 10000 });
+
+      const cookies = loginRes.headers["set-cookie"];
+      if (cookies) {
+        sessionCookie = cookies.map(c => c.split(";")[0]).join("; ");
+        console.log("[n8n API] Session authenticated successfully.");
+        return sessionCookie;
+      }
+      throw new Error("No cookies received from login.");
+    } catch (err) {
+      console.error("[n8n API] Session login failed:", err.message);
+      throw err;
+    } finally {
+      sessionPromise = null;
+    }
+  })();
+
+  return sessionPromise;
+}
+
+/**
+ * Detect whether we are using API Key auth (Public API) or Session Auth (Internal).
  * Returns true if API Key is available.
  */
 function isApiKeyMode() {
@@ -24,8 +64,8 @@ function isApiKeyMode() {
   return !!apiKey;
 }
 
-// Request Interceptor: Inject Credentials (API Key OR Basic Auth)
-api.interceptors.request.use(reqConfig => {
+// Request Interceptor: Inject Credentials (API Key OR Session Cookie)
+api.interceptors.request.use(async reqConfig => {
   try {
     const state = require("../utils/state"); // Dynamic import
     // 1. Try Env Var (Always plain text)
@@ -33,13 +73,8 @@ api.interceptors.request.use(reqConfig => {
 
     // 2. Try State (Might be encrypted)
     if (!apiKey) {
-      const createHash = require("crypto").createHash;
       const storedValue = state.get("n8nApiKey");
-
-      // state.get() attempts to decrypt, but let's double check
       if (storedValue && storedValue.startsWith("enc:")) {
-        // If state.get() returned it starting with enc:, it failed to decrypt internaly
-        // or logic in state.js is bypassed. Let's try to decrypt manually.
         const { decrypt } = require("../utils/security");
         apiKey = decrypt(storedValue);
       } else {
@@ -50,9 +85,9 @@ api.interceptors.request.use(reqConfig => {
     // 3. Trim whatever we got
     if (apiKey) apiKey = apiKey.trim();
 
-    // 4. Validate Key Length (Fix for corrupted/encrypted keys)
+    // 4. Validate Key Length
     if (apiKey && apiKey.length > 60) {
-      console.warn(`[n8n API] Detected invalid API Key length (${apiKey.length} chars). Ignoring it to use Basic Auth fallback.`);
+      console.warn(`[n8n API] Detected invalid API Key length (${apiKey.length} chars). Ignoring it.`);
       apiKey = null;
     }
 
@@ -65,15 +100,19 @@ api.interceptors.request.use(reqConfig => {
         reqConfig.baseURL = reqConfig.baseURL.replace("/rest", "/api/v1");
       }
     } else if (config.n8n.user && config.n8n.pass) {
-      // ─── Mode 2: Basic Auth (Internal API) ───
-      // Only apply if no API Key is present
-      reqConfig.auth = {
-        username: config.n8n.user,
-        password: config.n8n.pass
-      };
+      // ─── Mode 2: Session Auth (Internal API) ───
+      try {
+        const cookie = await getSessionCookie();
+        if (cookie) {
+          reqConfig.headers["Cookie"] = cookie;
+        }
+      } catch (e) {
+        // Allow request to proceed (it might fail with 401, which we catch later)
+        console.warn("[n8n API] Proceeding without session cookie after login failure.");
+      }
     }
 
-    console.log(`[n8n API] Requesting: ${reqConfig.method.toUpperCase()} ${reqConfig.baseURL}${reqConfig.url}`);
+    // console.log(`[n8n API] Requesting: ${reqConfig.method.toUpperCase()} ${reqConfig.baseURL}${reqConfig.url}`);
   } catch (err) {
     console.warn("Failed to inject credentials:", err.message);
   }
@@ -84,7 +123,7 @@ api.interceptors.request.use(reqConfig => {
 api.interceptors.response.use(
   response => response,
   error => {
-    console.error(`[n8n API] Error ${error.response?.status} on ${error.config?.url}:`, error.response?.data || error.message);
+    // console.error(`[n8n API] Error ${error.response?.status} on ${error.config?.url}:`, error.response?.data || error.message);
     return Promise.reject(error);
   }
 );
@@ -97,31 +136,44 @@ api.interceptors.response.use(
 
     // If we get a 401 and haven't retried yet
     if (error.response && error.response.status === 401 && !originalRequest._retry) {
-      console.warn("[n8n API] 401 Unauthorized received. Trying fallback to Basic Auth...");
+      console.warn("[n8n API] 401 Unauthorized received. Trying to recover...");
       originalRequest._retry = true;
 
       const config = require("../config");
 
-      // If we have Basic Auth creds, try them
-      if (config.n8n.user && config.n8n.pass) {
-        // Remove the failing API key
+      // Scenario A: API Key Failed -> Try Session Auth fallback
+      if (originalRequest.headers["X-N8N-API-KEY"] && config.n8n.user && config.n8n.pass) {
+        console.log("[n8n API] API Key rejected. Falling back to Session Auth...");
         delete originalRequest.headers["X-N8N-API-KEY"];
 
-        // Add Basic Auth
-        originalRequest.auth = {
-          username: config.n8n.user,
-          password: config.n8n.pass
-        };
-
-        // Fix URL: If we were hitting Public API (/api/v1), switch to Internal API (/rest)
-        // Basic Auth usually only works on /rest endpoints in some n8n versions, 
-        // or is safer to use there.
+        // Switch URL from /api/v1 back to /rest
         if (originalRequest.baseURL && originalRequest.baseURL.includes("/api/v1")) {
           originalRequest.baseURL = originalRequest.baseURL.replace("/api/v1", "/rest");
         }
 
-        console.log(`[n8n API] Retrying with Basic Auth: ${originalRequest.baseURL}${originalRequest.url}`);
-        return api(originalRequest);
+        try {
+          const cookie = await getSessionCookie(true); // Force new session
+          if (cookie) {
+            originalRequest.headers["Cookie"] = cookie;
+            return api(originalRequest);
+          }
+        } catch (err) {
+          console.error("[n8n API] Fallback login failed:", err.message);
+        }
+      }
+
+      // Scenario B: Session Auth Failed (Cookie Expired) -> Refresh & Retry
+      else if (config.n8n.user && config.n8n.pass) {
+        console.log("[n8n API] Session expired. Refreshing...");
+        try {
+          const cookie = await getSessionCookie(true); // Force refresh
+          if (cookie) {
+            originalRequest.headers["Cookie"] = cookie;
+            return api(originalRequest);
+          }
+        } catch (err) {
+          console.error("[n8n API] Session refresh failed:", err.message);
+        }
       }
     }
     return Promise.reject(error);
@@ -176,6 +228,7 @@ module.exports = {
   async executeWorkflow(id) {
     // Public API v1 uses POST /workflows/:id/run
     // Internal REST API uses POST /workflows/:id/execute
+    // Note: If falling back from API Key to Session, URL adjustment is handled in interceptor
     const endpoint = isApiKeyMode()
       ? `/workflows/${id}/run`
       : `/workflows/${id}/execute`;
@@ -226,60 +279,13 @@ module.exports = {
   // ─── Settings / Version ─────────────────────────────
 
   async getSettings() {
-    // The /settings endpoint only exists on the Internal REST API, NOT the
-    // Public API v1.  Modern n8n requires session-cookie auth (login first).
-
-    const baseURL = config.n8n.baseURL;
-
-    // Strategy 1: Login via /rest/login, then GET /rest/settings with cookie
-    if (config.n8n.user && config.n8n.pass) {
-      try {
-        // n8n login expects email + password (N8N_USER is typically the email)
-        const loginRes = await axios.post(`${baseURL}/rest/login`, {
-          email: config.n8n.user,
-          password: config.n8n.pass,
-        }, { timeout: 10000 });
-
-        // Extract session cookie from Set-Cookie header
-        const cookies = loginRes.headers["set-cookie"];
-        if (cookies) {
-          const cookieStr = cookies.map(c => c.split(";")[0]).join("; ");
-          const settingsRes = await axios.get(`${baseURL}/rest/settings`, {
-            headers: { Cookie: cookieStr },
-            timeout: 10000,
-          });
-          return settingsRes.data?.data || settingsRes.data;
-        }
-      } catch (err) {
-        console.warn("[n8n API] Settings via session login failed:", err.message);
-      }
-    }
-
-    // Strategy 2: Try Basic Auth (works on older n8n versions)
-    if (config.n8n.user && config.n8n.pass) {
-      try {
-        const res = await axios.get(`${baseURL}/rest/settings`, {
-          auth: { username: config.n8n.user, password: config.n8n.pass },
-          timeout: 10000,
-        });
-        return res.data?.data || res.data;
-      } catch (err) {
-        console.warn("[n8n API] Settings via Basic Auth failed:", err.message);
-      }
-    }
-
-    // Strategy 3: No-auth request (n8n returns partial settings without auth,
-    //             including the version in some configurations)
+    // Now we can just use the shared session mechanism for consistent access
     try {
-      const res = await axios.get(`${baseURL}/rest/settings`, {
-        timeout: 10000,
-      });
+      const res = await api.get("/settings");
       return res.data?.data || res.data;
     } catch (err) {
-      console.warn("[n8n API] Settings without auth failed:", err.message);
+      console.warn("[n8n API] getSettings failed:", err.message);
+      return {};
     }
-
-    // Nothing worked — return a minimal object so callers don't crash
-    return {};
   },
 };
