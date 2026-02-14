@@ -65,7 +65,8 @@ This will:
 3. ✅ Ask for your **Bot Token** and **Admin ID**
 4. ✅ Auto-generate secure database passwords
 5. ✅ Deploy all 5 containers
-6. ✅ Show your n8n login credentials
+6. ✅ Auto-create n8n owner account
+7. ✅ Show your n8n login credentials
 
 After install: **Open Telegram → send `/start` to your bot** 🎉
 
