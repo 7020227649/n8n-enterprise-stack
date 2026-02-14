@@ -582,6 +582,19 @@ TOTAL=$(docker compose ps --format "{{.State}}" 2>/dev/null | wc -l || echo "0")
 
 if [ "$RUNNING" -gt 0 ]; then
   log "Containers running: ${RUNNING}/${TOTAL}"
+  
+  # ─── New: Auto-Create Owner Account ───
+  # This prevents the bot from failing 401 on fresh installs
+  step "Account Setup"
+  info "Auto-creating n8n owner account..."
+  
+  # Ensure we have credentials
+  CREAT_USER=${N8N_USER:-$(grep N8N_USER .env | cut -d'=' -f2)}
+  CREAT_PASS=${N8N_PASS:-$(grep N8N_PASS .env | cut -d'=' -f2)}
+  
+  docker compose exec n8n-main n8n user:management:owner:create --email "$CREAT_USER" --password "$CREAT_PASS" --firstName "Admin" --lastName "User" >/dev/null 2>&1 || true
+  log "Owner account configured."
+  
 else
   warn "Containers may still be starting. Check: docker compose ps"
 fi
