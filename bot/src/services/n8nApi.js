@@ -31,6 +31,11 @@ async function getSessionCookie(forceRefresh = false) {
   sessionPromise = (async () => {
     try {
       console.log("[n8n API] Authenticating via Session...");
+
+      if (!config.n8n.user || !config.n8n.user.includes("@")) {
+        console.warn("[n8n API] WARNING: N8N_USER does not look like an email address. Login may fail.");
+      }
+
       const loginRes = await axios.post(`${config.n8n.baseURL}/rest/login`, {
         emailOrLdapLoginId: config.n8n.user,
         password: config.n8n.pass,
