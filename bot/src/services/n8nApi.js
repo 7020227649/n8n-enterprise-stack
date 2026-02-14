@@ -17,6 +17,8 @@ axiosRetry(api, {
 // Store session cookie in memory
 let sessionCookie = null;
 let sessionPromise = null;
+// Runtime flag to disable bad API keys if they fail
+let apiKeyInvalid = false;
 
 /**
  * Perform login to n8n and get a session cookie.
@@ -61,9 +63,11 @@ async function getSessionCookie(forceRefresh = false) {
 
 /**
  * Detect whether we are using API Key auth (Public API) or Session Auth (Internal).
- * Returns true if API Key is available.
+ * Returns true if API Key is available AND valid.
  */
 function isApiKeyMode() {
+  if (apiKeyInvalid) return false;
+
   const state = require("../utils/state"); // Dynamic import
   const apiKey = config.n8n.apiKey || state.get("n8nApiKey");
   return !!apiKey;
@@ -99,6 +103,11 @@ api.interceptors.request.use(async reqConfig => {
       apiKey = null;
     }
 
+    // 5. Check if key is marked invalid at runtime
+    if (apiKeyInvalid) {
+      apiKey = null;
+    }
+
     if (apiKey) {
       // ─── Mode 1: API Key (Public API) ───
       reqConfig.headers["X-N8N-API-KEY"] = apiKey;
@@ -119,8 +128,6 @@ api.interceptors.request.use(async reqConfig => {
         console.warn("[n8n API] Proceeding without session cookie after login failure.");
       }
     }
-
-    // console.log(`[n8n API] Requesting: ${reqConfig.method.toUpperCase()} ${reqConfig.baseURL}${reqConfig.url}`);
   } catch (err) {
     console.warn("Failed to inject credentials:", err.message);
   }
@@ -131,7 +138,6 @@ api.interceptors.request.use(async reqConfig => {
 api.interceptors.response.use(
   response => response,
   error => {
-    // console.error(`[n8n API] Error ${error.response?.status} on ${error.config?.url}:`, error.response?.data || error.message);
     return Promise.reject(error);
   }
 );
@@ -151,7 +157,11 @@ api.interceptors.response.use(
 
       // Scenario A: API Key Failed -> Try Session Auth fallback
       if (originalRequest.headers["X-N8N-API-KEY"] && config.n8n.user && config.n8n.pass) {
-        console.log("[n8n API] API Key rejected. Falling back to Session Auth...");
+        console.log("[n8n API] API Key rejected. Marking invalid and falling back to Session Auth...");
+
+        // PERMANENTLY disable API key for this runtime to prevent future failures
+        apiKeyInvalid = true;
+
         delete originalRequest.headers["X-N8N-API-KEY"];
 
         // Switch URL from /api/v1 back to /rest
@@ -160,6 +170,7 @@ api.interceptors.response.use(
         }
 
         try {
+          // Use existing session if available, or fetch new one
           const cookie = await getSessionCookie(false);
           if (cookie) {
             originalRequest.headers["Cookie"] = cookie;
