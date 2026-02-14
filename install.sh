@@ -280,12 +280,8 @@ if [ "${SKIP_ENV}" != "true" ]; then
 
   prompt_required ADMIN_ID "  → Admin ID (your Telegram user ID): " "Admin ID is required!"
 
-  echo ""
-  echo -e "  ${CYAN}${BOLD}n8n API Key (Optional)${NC}"
-  echo -e "  ${DIM}Required for full bot functionality. You can set it later via /setkey in the bot.${NC}"
-  echo -e "  ${DIM}Generate in n8n: Settings > Developer > API Keys${NC}"
-  echo ""
-  prompt N8N_API_KEY "  → API Key (or press Enter to skip): "
+  # API Key prompt removed (User should set it via bot after install)
+  N8N_API_KEY=""
 
   # Auto-generate secure passwords and secrets
   # Use deterministic password generation based on BOT_TOKEN
@@ -631,10 +627,14 @@ echo -e "  ${BOLD}2. Activate your Bot${NC}"
 echo -e "     Go to Telegram, find your bot, and tap ${BOLD}Start${NC}."
 echo -e "     It will guide you through the features."
 echo ""
-echo -e "  ${BOLD}3. Secure your Data${NC}"
-echo -e "     The bot will suggest enabling daily backups."
-echo ""
-echo -e "  ${DIM}────────────────────────────────────────────────────${NC}"
-echo -e "  ${RED}${BOLD}⚠️  IMPORTANT: Save your password now!${NC}"
-echo -e "  ${DIM}────────────────────────────────────────────────────${NC}"
+  echo -e "  ${BOLD}3. Secure your Data${NC}"
+  echo -e "     The bot will suggest enabling daily backups."
+  echo ""
+  echo -e "  ${BOLD}4. Unlock Full Power (Optional)${NC}"
+  echo -e "     Generate an API Key in n8n (Settings > Developer)."
+  echo -e "     Send it to the bot: ${CYAN}/setkey <your_key>${NC}"
+  echo ""
+  echo -e "  ${DIM}────────────────────────────────────────────────────${NC}"
+  echo -e "  ${RED}${BOLD}⚠️  IMPORTANT: Save your password now!${NC}"
+  echo -e "  ${DIM}────────────────────────────────────────────────────${NC}"
 echo ""
