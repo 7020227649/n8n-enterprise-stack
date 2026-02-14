@@ -10,6 +10,7 @@ const STATE_KEY = state.get("n8nApiKey");
 
 console.log("🕵️  Starting Deep Auth Debug...");
 console.log(`📍 Target: ${BASE_URL}`);
+console.log(`👤 User: ${N8N_USER}`);
 
 async function test(name, headers, auth) {
     try {
