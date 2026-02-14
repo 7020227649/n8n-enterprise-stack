@@ -160,7 +160,7 @@ api.interceptors.response.use(
         }
 
         try {
-          const cookie = await getSessionCookie(true); // Force new session
+          const cookie = await getSessionCookie(false);
           if (cookie) {
             originalRequest.headers["Cookie"] = cookie;
             return api(originalRequest);
