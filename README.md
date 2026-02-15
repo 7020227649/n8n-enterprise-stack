@@ -84,6 +84,31 @@ docker compose up -d --build
 
 ---
 
+### 🔑 API Key Configuration (Terminal)
+
+If you cannot use the Telegram bot to set the API key, you can do it manually via the terminal.
+
+**Method 1: Using the Helper Script**
+```bash
+cd /opt/n8n-enterprise-stack && ./set-key.sh "YOUR_API_KEY_HERE"
+```
+
+**Method 2: Manual .env Edit**
+1. Open the `.env` file:
+   ```bash
+   nano .env
+   ```
+2. Find or add `N8N_API_KEY`:
+   ```bash
+   N8N_API_KEY=your_api_key_here
+   ```
+3. Save and restart:
+   ```bash
+   docker compose restart bot
+   ```
+
+---
+
 ### 🔄 Updating the Bot
 
 After pulling new changes or making updates, redeploy the bot:
