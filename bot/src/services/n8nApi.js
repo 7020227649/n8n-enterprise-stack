@@ -232,26 +232,23 @@ module.exports = {
 
   // ─── Workflow Activation ────────────────────────────
 
+  // ─── Workflow Activation ────────────────────────────
+
   async activateWorkflow(id) {
-    const res = await api.patch(`/workflows/${id}`, { active: true });
+    const res = await api.post(`/workflows/${id}/activate`);
     return res.data?.data || res.data;
   },
 
   async deactivateWorkflow(id) {
-    const res = await api.patch(`/workflows/${id}`, { active: false });
+    const res = await api.post(`/workflows/${id}/deactivate`);
     return res.data?.data || res.data;
   },
 
   // ─── Workflow Execution ─────────────────────────────
 
   async executeWorkflow(id) {
-    // Public API v1 uses POST /workflows/:id/run
-    // Internal REST API uses POST /workflows/:id/execute
-    // Note: If falling back from API Key to Session, URL adjustment is handled in interceptor
-    const endpoint = isApiKeyMode()
-      ? `/workflows/${id}/run`
-      : `/workflows/${id}/execute`;
-    const res = await api.post(endpoint);
+    // Use the standard execute endpoint for both modes
+    const res = await api.post(`/workflows/${id}/execute`);
     return res.data?.data || res.data;
   },
 
