@@ -237,37 +237,54 @@ module.exports = {
   // ─── Workflow Activation ────────────────────────────
 
   async activateWorkflow(id) {
+    let resData;
     // Try POST first (Public API), then PATCH (Internal API)
-    // We catch errors to prevent bot crash
     try {
       try {
         const res = await api.post(`/workflows/${id}/activate`);
-        return res.data?.data || res.data;
+        resData = res.data?.data || res.data;
       } catch (e) {
         // Fallback to PATCH
         const res = await api.patch(`/workflows/${id}`, { active: true });
-        return res.data?.data || res.data;
+        resData = res.data?.data || res.data;
       }
     } catch (err) {
       console.error(`[n8n API] Activate failed for ${id}:`, err.message);
       throw err;
     }
+
+    // Verify state
+    const clean = validateWorkflow(resData);
+    if (!clean || !clean.active) {
+      console.error(`[n8n API] Activate verification failed for ${id}. Got active=${clean?.active}`);
+      throw new Error("API returned success but workflow remains inactive.");
+    }
+    return clean;
   },
 
   async deactivateWorkflow(id) {
+    let resData;
     try {
       try {
         const res = await api.post(`/workflows/${id}/deactivate`);
-        return res.data?.data || res.data;
+        resData = res.data?.data || res.data;
       } catch (e) {
         // Fallback to PATCH
         const res = await api.patch(`/workflows/${id}`, { active: false });
-        return res.data?.data || res.data;
+        resData = res.data?.data || res.data;
       }
     } catch (err) {
       console.error(`[n8n API] Deactivate failed for ${id}:`, err.message);
       throw err;
     }
+
+    // Verify state
+    const clean = validateWorkflow(resData);
+    if (clean && clean.active) {
+      console.error(`[n8n API] Deactivate verification failed for ${id}. Got active=${clean.active}`);
+      throw new Error("API returned success but workflow remains active.");
+    }
+    return clean;
   },
 
   // ─── Workflow Execution ─────────────────────────────
