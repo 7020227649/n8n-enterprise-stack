@@ -298,96 +298,107 @@ module.exports = {
   },
 
   async deactivateWorkflow(id) {
-  } catch(e) {
-    // Fallback to PATCH
-    const res = await api.patch(`/workflows/${id}`, { active: false });
-    resData = res.data?.data || res.data;
-  }
-} catch (err) {
-  console.error(`[n8n API] Deactivate failed for ${id}:`, err.message);
-  throw err;
-}
+    let lastError;
+    // Strategy 1: POST /deactivate
+    try {
+      await api.post(`/workflows/${id}/deactivate`);
+      if (await this.verifyActive(id, false)) return await this.getWorkflow(id);
+    } catch (e) { lastError = e; }
 
-// Verify state (Fetch fresh data to ensure persistence)
-const fresh = await this.getWorkflow(id);
-if (fresh && fresh.active) {
-  console.error(`[n8n API] Deactivate verification failed for ${id}. Fetched active=${fresh.active}`);
-  throw new Error("API returned success but workflow remains active.");
-}
-return fresh;
+    // Strategy 1b: Public API
+    try {
+      await api.post(`/workflows/${id}/deactivate`, {}, { baseURL: `${config.n8n.baseURL}/api/v1` });
+      if (await this.verifyActive(id, false)) return await this.getWorkflow(id);
+    } catch (e) { lastError = e; }
+
+    // Strategy 2: PATCH
+    try {
+      await api.patch(`/workflows/${id}`, { active: false });
+      if (await this.verifyActive(id, false)) return await this.getWorkflow(id);
+    } catch (e) { lastError = e; }
+
+    // Strategy 3: PUT
+    try {
+      const wf = await this.getWorkflow(id);
+      if (wf) {
+        wf.active = false;
+        await api.put(`/workflows/${id}`, wf);
+        if (await this.verifyActive(id, false)) return await this.getWorkflow(id);
+      }
+    } catch (e) { lastError = e; }
+
+    throw new Error(`Could not deactivate workflow. Last error: ${lastError?.message || "Unknown"}`);
   },
 
   // ─── Workflow Execution ─────────────────────────────
 
   async executeWorkflow(id) {
-  // Public API v1 uses POST /workflows/:id/run
-  // Internal REST API uses POST /workflows/:id/execute
-  // We check authentication mode to decide, but also provide a fallback if needed
-  const endpoint = isApiKeyMode()
-    ? `/workflows/${id}/run`
-    : `/workflows/${id}/execute`;
+    // Public API v1 uses POST /workflows/:id/run
+    // Internal REST API uses POST /workflows/:id/execute
+    // We check authentication mode to decide, but also provide a fallback if needed
+    const endpoint = isApiKeyMode()
+      ? `/workflows/${id}/run`
+      : `/workflows/${id}/execute`;
 
-  try {
-    const res = await api.post(endpoint);
-    return res.data?.data || res.data;
-  } catch (err) {
-    // If we tried /run and failed, maybe we should try /execute or vice versa?
-    // For now, let's just log and rethrow, as switching endpoints might obscure the real error (like 404).
-    // But if we are in API Key mode and /run fails with 404, it might mean the user is on an old version.
-    throw err;
-  }
-},
+    try {
+      const res = await api.post(endpoint);
+      return res.data?.data || res.data;
+    } catch (err) {
+      throw err;
+    }
+  },
 
   // ─── Execution History ──────────────────────────────
 
   async getExecutions(params = {}) {
-  const query = {
-    limit: params.limit || 20,
-    ...(params.workflowId && { workflowId: params.workflowId }),
-    ...(params.status && { status: params.status }),
-    ...(params.cursor && { cursor: params.cursor })
-  };
-  const res = await api.get("/executions", { params: query });
-  return validateExecutions(res.data);
-},
+    const query = {
+      limit: params.limit || 20,
+      ...(params.workflowId && { workflowId: params.workflowId }),
+      ...(params.status && { status: params.status }),
+      ...(params.cursor && { cursor: params.cursor })
+    };
+    const res = await api.get("/executions", { params: query });
+    return validateExecutions(res.data);
+  },
 
   async getExecution(id) {
-  const res = await api.get(`/executions/${id}`);
-  return res.data?.data || res.data;
-},
+    const res = await api.get(`/executions/${id}`);
+    return res.data?.data || res.data;
+  },
 
   // ─── Stop / Delete Execution ────────────────────────
 
   async stopExecution(id) {
-  const res = await api.post(`/executions/${id}/stop`);
-  return res.data?.data || res.data;
-},
+    const res = await api.post(`/executions/${id}/stop`);
+    return res.data?.data || res.data;
+  },
 
   // ─── Credentials ────────────────────────────────────
 
   async getCredentials() {
-  const res = await api.get("/credentials");
-  const data = res.data?.data || res.data;
-  return Array.isArray(data) ? data : [];
-},
+    const res = await api.get("/credentials");
+    const data = res.data?.data || res.data;
+    return Array.isArray(data) ? data : [];
+  },
 
   // ─── Retry Execution ────────────────────────────────
 
   async retryExecution(id) {
-  const res = await api.post(`/executions/${id}/retry`);
-  return res.data?.data || res.data;
-},
+    const res = await api.post(`/executions/${id}/retry`);
+    return res.data?.data || res.data;
+  },
 
   // ─── Settings / Version ─────────────────────────────
 
   async getSettings() {
-  // Now we can just use the shared session mechanism for consistent access
-  try {
-    const res = await api.get("/settings");
-    return res.data?.data || res.data;
-  } catch (err) {
-    console.warn("[n8n API] getSettings failed:", err.message);
-    return {};
-  }
-},
+    // Now we can just use the shared session mechanism for consistent access
+    try {
+      const res = await api.get("/settings");
+      return res.data?.data || res.data;
+    } catch (err) {
+      console.warn("[n8n API] getSettings failed:", err.message);
+      return {};
+    }
+  },
+
 };
