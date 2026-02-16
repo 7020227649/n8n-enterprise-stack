@@ -14,7 +14,7 @@ function validateWorkflow(obj) {
     return {
         id: obj.id != null ? String(obj.id) : null,
         name: typeof obj.name === "string" ? obj.name : `Workflow ${obj.id || "Unknown"}`,
-        active: Boolean(obj.active),
+        active: obj.active === true || String(obj.active).toLowerCase() === "true" || obj.active === 1,
         nodes: Array.isArray(obj.nodes) ? obj.nodes : [],
         connections: obj.connections && typeof obj.connections === "object" ? obj.connections : {},
         updatedAt: obj.updatedAt || null,
