@@ -234,25 +234,39 @@ module.exports = {
 
   // ─── Workflow Activation ────────────────────────────
 
+  // ─── Workflow Activation ────────────────────────────
+
   async activateWorkflow(id) {
+    // Try POST first (Public API), then PATCH (Internal API)
+    // We catch errors to prevent bot crash
     try {
-      const res = await api.post(`/workflows/${id}/activate`);
-      return res.data?.data || res.data;
+      try {
+        const res = await api.post(`/workflows/${id}/activate`);
+        return res.data?.data || res.data;
+      } catch (e) {
+        // Fallback to PATCH
+        const res = await api.patch(`/workflows/${id}`, { active: true });
+        return res.data?.data || res.data;
+      }
     } catch (err) {
-      console.warn(`[n8n API] POST /activate failed for ${id} (${err.response?.status}), falling back to PATCH...`);
-      const res = await api.patch(`/workflows/${id}`, { active: true });
-      return res.data?.data || res.data;
+      console.error(`[n8n API] Activate failed for ${id}:`, err.message);
+      throw err;
     }
   },
 
   async deactivateWorkflow(id) {
     try {
-      const res = await api.post(`/workflows/${id}/deactivate`);
-      return res.data?.data || res.data;
+      try {
+        const res = await api.post(`/workflows/${id}/deactivate`);
+        return res.data?.data || res.data;
+      } catch (e) {
+        // Fallback to PATCH
+        const res = await api.patch(`/workflows/${id}`, { active: false });
+        return res.data?.data || res.data;
+      }
     } catch (err) {
-      console.warn(`[n8n API] POST /deactivate failed for ${id} (${err.response?.status}), falling back to PATCH...`);
-      const res = await api.patch(`/workflows/${id}`, { active: false });
-      return res.data?.data || res.data;
+      console.error(`[n8n API] Deactivate failed for ${id}:`, err.message);
+      throw err;
     }
   },
 
