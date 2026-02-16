@@ -234,49 +234,47 @@ module.exports = {
 
   // ─── Workflow Activation ────────────────────────────
   async activateWorkflow(id) {
-    let resData;
+    let lastError;
+
+    // Strategy 1: Standard POST /activate (Newer n8n)
     try {
-      // Robust activation: precise sequence to guarantee state change
-      // 1. Fetch RAW workflow data (bypassing validation to keep all fields)
+      const res = await api.post(`/workflows/${id}/activate`);
+      // Verify immediately
+      const fresh = await this.getWorkflow(id);
+      if (fresh && fresh.active) return fresh;
+    } catch (e) {
+      lastError = e;
+      console.warn(`[n8n API] Strategy 1 (POST) failed for ${id}: ${e.message}`);
+    }
+
+    // Strategy 2: PATCH { active: true } (Common n8n)
+    try {
+      const res = await api.patch(`/workflows/${id}`, { active: true });
+      const fresh = await this.getWorkflow(id);
+      if (fresh && fresh.active) return fresh;
+    } catch (e) {
+      lastError = e;
+      console.warn(`[n8n API] Strategy 2 (PATCH) failed for ${id}: ${e.message}`);
+    }
+
+    // Strategy 3: PUT full update (Brute force)
+    try {
       const raw = await api.get(`/workflows/${id}`);
       const wf = raw.data?.data || raw.data;
-
-      if (!wf) throw new Error(`Workflow ${id} not found`);
-
-      // 2. Check if already active
-      if (wf.active === true || String(wf.active).toLowerCase() === "true") {
-        return wf; // Already active
+      if (wf) {
+        wf.active = true;
+        await api.put(`/workflows/${id}`, wf);
+        const fresh = await this.getWorkflow(id);
+        if (fresh && fresh.active) return fresh;
       }
-
-      // 3. Force update via PUT (Standard n8n API method for full update)
-      // We must send the full object back with active: true
-      wf.active = true;
-
-      // Some n8n versions require specific endpoints for activation, 
-      // but updating the workflow definition usually triggers the internal manager.
-      // We try the specific endpoint FIRST as it's cleaner, if it fails we fall back to full update.
-      try {
-        const postRes = await api.post(`/workflows/${id}/activate`);
-        resData = postRes.data?.data || postRes.data;
-      } catch (postErr) {
-        // Fallback: PUT the full workflow with active: true
-        // This is safe because we just fetched the full object.
-        const putRes = await api.put(`/workflows/${id}`, wf);
-        resData = putRes.data?.data || putRes.data;
-      }
-
-    } catch (err) {
-      console.error(`[n8n API] Activate failed for ${id}:`, err.message);
-      throw err;
+    } catch (e) {
+      lastError = e;
+      console.warn(`[n8n API] Strategy 3 (PUT) failed for ${id}: ${e.message}`);
     }
 
-    // Verify state (Fetch fresh data to ensure persistence)
-    const fresh = await this.getWorkflow(id);
-    if (!fresh || !fresh.active) {
-      console.error(`[n8n API] Activate verification failed for ${id}. Fetched active=${fresh?.active}`);
-      throw new Error("Activation command succeeded but workflow is still inactive. Check n8n logs for errors.");
-    }
-    return fresh;
+    // If we are here, all strategies failed or verification failed
+    console.error(`[n8n API] All activation strategies failed for ${id}`);
+    throw new Error(`Could not activate workflow. Last error: ${lastError?.message || "Unknown"}`);
   },
 
   async deactivateWorkflow(id) {
