@@ -235,21 +235,46 @@ module.exports = {
   // ─── Workflow Activation ────────────────────────────
 
   async activateWorkflow(id) {
-    const res = await api.post(`/workflows/${id}/activate`);
-    return res.data?.data || res.data;
+    try {
+      const res = await api.post(`/workflows/${id}/activate`);
+      return res.data?.data || res.data;
+    } catch (err) {
+      console.warn(`[n8n API] POST /activate failed for ${id} (${err.response?.status}), falling back to PATCH...`);
+      const res = await api.patch(`/workflows/${id}`, { active: true });
+      return res.data?.data || res.data;
+    }
   },
 
   async deactivateWorkflow(id) {
-    const res = await api.post(`/workflows/${id}/deactivate`);
-    return res.data?.data || res.data;
+    try {
+      const res = await api.post(`/workflows/${id}/deactivate`);
+      return res.data?.data || res.data;
+    } catch (err) {
+      console.warn(`[n8n API] POST /deactivate failed for ${id} (${err.response?.status}), falling back to PATCH...`);
+      const res = await api.patch(`/workflows/${id}`, { active: false });
+      return res.data?.data || res.data;
+    }
   },
 
   // ─── Workflow Execution ─────────────────────────────
 
   async executeWorkflow(id) {
-    // Use the standard execute endpoint for both modes
-    const res = await api.post(`/workflows/${id}/execute`);
-    return res.data?.data || res.data;
+    // Public API v1 uses POST /workflows/:id/run
+    // Internal REST API uses POST /workflows/:id/execute
+    // We check authentication mode to decide, but also provide a fallback if needed
+    const endpoint = isApiKeyMode()
+      ? `/workflows/${id}/run`
+      : `/workflows/${id}/execute`;
+
+    try {
+      const res = await api.post(endpoint);
+      return res.data?.data || res.data;
+    } catch (err) {
+      // If we tried /run and failed, maybe we should try /execute or vice versa?
+      // For now, let's just log and rethrow, as switching endpoints might obscure the real error (like 404).
+      // But if we are in API Key mode and /run fails with 404, it might mean the user is on an old version.
+      throw err;
+    }
   },
 
   // ─── Execution History ──────────────────────────────
