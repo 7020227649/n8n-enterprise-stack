@@ -253,13 +253,13 @@ module.exports = {
       throw err;
     }
 
-    // Verify state
-    const clean = validateWorkflow(resData);
-    if (!clean || !clean.active) {
-      console.error(`[n8n API] Activate verification failed for ${id}. Got active=${clean?.active}`);
+    // Verify state (Fetch fresh data to ensure persistence)
+    const fresh = await this.getWorkflow(id);
+    if (!fresh || !fresh.active) {
+      console.error(`[n8n API] Activate verification failed for ${id}. Fetched active=${fresh?.active}`);
       throw new Error("API returned success but workflow remains inactive.");
     }
-    return clean;
+    return fresh;
   },
 
   async deactivateWorkflow(id) {
@@ -278,13 +278,13 @@ module.exports = {
       throw err;
     }
 
-    // Verify state
-    const clean = validateWorkflow(resData);
-    if (clean && clean.active) {
-      console.error(`[n8n API] Deactivate verification failed for ${id}. Got active=${clean.active}`);
+    // Verify state (Fetch fresh data to ensure persistence)
+    const fresh = await this.getWorkflow(id);
+    if (fresh && fresh.active) {
+      console.error(`[n8n API] Deactivate verification failed for ${id}. Fetched active=${fresh.active}`);
       throw new Error("API returned success but workflow remains active.");
     }
-    return clean;
+    return fresh;
   },
 
   // ─── Workflow Execution ─────────────────────────────
